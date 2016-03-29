@@ -39,7 +39,9 @@
         <dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>rtree</artifactId>
-            <version>0.7.5</version>
+            <version>0.8-RC8-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../rtree/target/rtree-0.8-RC8-SNAPSHOT.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.github.davidmoten</groupId>
