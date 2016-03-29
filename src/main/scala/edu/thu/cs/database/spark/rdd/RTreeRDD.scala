@@ -26,7 +26,9 @@ object RTreeRDD {
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
           println(iter.length)
-          var tree: RTree[T, S] = RTree.star().create[T, S]()
+          val builder = RTree.star()
+          println("++++++++++")
+          var tree = builder.create[T, S]()
           println("==========================")
           iter.foreach( a => {
             tree = tree.add(a)
