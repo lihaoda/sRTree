@@ -23,7 +23,7 @@ object RTreeRDD {
           rdd
         }
       }
-      new RTreeRDD(
+      new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
           val tree: RTree[T, S] = RTree.star().create()
           iter.foreach(tree.add(_))
@@ -42,7 +42,7 @@ object RTreeRDD {
           rdd
         }
       }
-      new RTreeRDD(
+      new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
           val tree: RTree[T, S] = RTree.star().create()
           iter.foreach {
@@ -56,10 +56,10 @@ object RTreeRDD {
   }
 
 
-  implicit def en2tup[A, B](a:Entry[A, B]):(B, A) = (a.geometry(), a.value())
-  implicit def tup2en[A, B](a:(B, A)):Entry[A, B] = new Entry(a._2, a._1)
-  implicit def eni2tupi[A, B](iter: Iterator[Entry[A, B]]):Iterator[(B, A)] = iter.map(RTreeRDD.en2tup)
-  implicit def tupi2eni[A, B](iter: Iterator[(B, A)]):Iterator[Entry[A, B]] = iter.map(RTreeRDD.tup2en)
+  implicit def en2tup[A, B <: Geometry](a:Entry[A, B]):(B, A) = (a.geometry(), a.value())
+  implicit def tup2en[A, B <: Geometry](a:(B, A)):Entry[A, B] = new Entry(a._2, a._1)
+  implicit def eni2tupi[A, B <: Geometry](iter: Iterator[Entry[A, B]]):Iterator[(B, A)] = iter.map(RTreeRDD.en2tup)
+  implicit def tupi2eni[A, B <: Geometry](iter: Iterator[(B, A)]):Iterator[Entry[A, B]] = iter.map(RTreeRDD.tup2en)
 
   /*implicit def toIterator[A](o:Observable[A]): Iterator[A] = o.toBlocking.getIterator*/  /*new Iterator[A] {
     var rstIter:Option[Iterator[A]] = None
