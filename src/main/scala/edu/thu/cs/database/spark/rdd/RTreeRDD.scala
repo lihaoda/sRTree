@@ -14,7 +14,7 @@ import scala.reflect.ClassTag
 
 object RTreeRDD {
 
-  implicit class RTreeFunctionsForTuple[T, S <: Geometry](rdd: RDD[(S, T)]) {
+  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry](rdd: RDD[(S, T)]) {
     def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
       val partitionedRdd = {
         if(numPartitions > 0) {
@@ -33,7 +33,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForSingle[T, S <: Geometry](rdd: RDD[T]) {
+  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry](rdd: RDD[T]) {
     def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
       val partitionedRdd = {
         if(numPartitions > 0) {
