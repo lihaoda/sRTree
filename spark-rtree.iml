@@ -159,12 +159,10 @@
     <orderEntry type="library" name="Maven: org.objenesis:objenesis:2.1" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.github.davidmoten:junit-extras:0.3" level="project" />
     <orderEntry type="library" name="Maven: edu.thu.database:rtree:0.8-RC8-SNAPSHOT" level="project" />
-    <orderEntry type="library" name="Maven: org.scala-lang:scala-compiler:2.11.7" level="project" />
-    <orderEntry type="library" name="Maven: org.scala-lang.modules:scala-xml_2.11:1.0.4" level="project" />
-    <orderEntry type="library" name="Maven: org.scala-lang.modules:scala-parser-combinators_2.11:1.0.4" level="project" />
-    <orderEntry type="library" name="Maven: org.scala-lang:scala-reflect:2.11.7" level="project" />
-    <orderEntry type="library" name="Maven: org.scala-lang:scala-library:2.11.7" level="project" />
-    <orderEntry type="library" name="Maven: org.scala-lang:scalap:2.11.7" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang:scala-compiler:2.10.4" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang:scala-reflect:2.10.4" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang:scala-library:2.10.4" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang:scalap:2.10.4" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.scalatest:scalatest_2.10:2.2.6" level="project" />
   </component>
 </module>

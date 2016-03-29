@@ -6,7 +6,7 @@
 
 
     <groupId>org.apache.spark</groupId>
-    <artifactId>spark-rtree_2.11</artifactId>
+    <artifactId>spark-rtree_2.10</artifactId>
     <version>1.6.1</version>
     <packaging>jar</packaging>
     <name>Spark Project RTree</name>
