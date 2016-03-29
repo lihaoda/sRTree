@@ -12,8 +12,8 @@
     <name>Spark Project RTree</name>
     <properties>
         <sbt.project.name>sql</sbt.project.name>
-        <scala.version>2.11.7</scala.version>
-        <scala.binary.version>2.11</scala.binary.version>
+        <scala.version>2.10.4</scala.version>
+        <scala.binary.version>2.10</scala.binary.version>
         <spark.version>1.6.1</spark.version>
         <jmh.version>1.11.3</jmh.version>
     </properties>
