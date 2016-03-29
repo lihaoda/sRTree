@@ -144,6 +144,8 @@
     <orderEntry type="library" name="Maven: net.sf.py4j:py4j:0.9" level="project" />
     <orderEntry type="library" name="Maven: org.spark-project.spark:unused:1.0.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.apache.spark:spark-core_2.11:test-jar:tests:1.6.1" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: io.reactivex:rxjava-string:0.22.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: io.reactivex:rxjava:1.0.0" level="project" />
     <orderEntry type="module-library">
       <library name="Maven: com.github.davidmoten:rtree:0.8-RC8-SNAPSHOT">
         <CLASSES>

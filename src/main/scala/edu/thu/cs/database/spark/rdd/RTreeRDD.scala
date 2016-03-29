@@ -1,7 +1,7 @@
 package edu.thu.cs.database.spark.rdd
 
 import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle}
-import com.github.davidmoten.rtree.{Entry, RTree}
+import com.github.davidmoten.rtree.{Entry, RTree, Entries}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 
@@ -25,8 +25,10 @@ object RTreeRDD {
       }
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
-          val tree: RTree[T, S] = RTree.star().create()
-          iter.foreach(tree.add(_))
+          var tree: RTree[T, S] = RTree.star().create()
+          iter.foreach( a => {
+            tree = tree.add(a)
+          })
           Iterator(tree)
         }, true)
       )
@@ -44,9 +46,9 @@ object RTreeRDD {
       }
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
-          val tree: RTree[T, S] = RTree.star().create()
+          var tree: RTree[T, S] = RTree.star().create()
           iter.foreach {
-            a => tree.add((f(a), a))
+            a => tree = tree.add((f(a), a))
           }
           Iterator(tree)
         },
@@ -57,7 +59,7 @@ object RTreeRDD {
 
 
   implicit def en2tup[A, B <: Geometry](a:Entry[A, B]):(B, A) = (a.geometry(), a.value())
-  implicit def tup2en[A, B <: Geometry](a:(B, A)):Entry[A, B] = new Entry(a._2, a._1)
+  implicit def tup2en[A, B <: Geometry](a:(B, A)):Entry[A, B] = Entries.entry(a._2, a._1)
   implicit def eni2tupi[A, B <: Geometry](iter: Iterator[Entry[A, B]]):Iterator[(B, A)] = iter.map(RTreeRDD.en2tup)
   implicit def tupi2eni[A, B <: Geometry](iter: Iterator[(B, A)]):Iterator[Entry[A, B]] = iter.map(RTreeRDD.tup2en)
 

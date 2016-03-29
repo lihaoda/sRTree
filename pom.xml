@@ -36,6 +36,13 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>io.reactivex</groupId>
+            <artifactId>rxjava-string</artifactId>
+            <version>0.22.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>rtree</artifactId>
