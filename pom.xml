@@ -115,18 +115,20 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
-                    <!-- TO Define Main Class
+                    <!-- TO Define Main Class -->
                     <archive>
                         <manifest>
-                            <mainClass>com.your-package.MainClass</mainClass>
+                            <mainClass>edu.thu.cs.database.benchmark.DataTest</mainClass>
                         </manifest>
                     </archive>
-                    -->
                 </configuration>
                 <executions>
                     <execution>
                         <id>make-assembly</id>
                         <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
@@ -142,7 +144,7 @@
                 </configuration>
             </plugin>
 
-            <!-- see https://gist.github.com/prb/d776a47bd164f704eecb and http://doc.akka.io/docs/akka/snapshot/general/configuration.html -->
+            <!-- see https://gist.github.com/prb/d776a47bd164f704eecb and http://doc.akka.io/docs/akka/snapshot/general/configuration.html
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -192,7 +194,7 @@
                     </execution>
                 </executions>
             </plugin>
-
+            -->
         </plugins>
     </build>
 
