@@ -140,7 +140,9 @@ private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RDD[RTree[T
 
   def search(r:Rectangle):RDD[(U, T)] = {
     firstParent[RTree[T, U]].mapPartitions(iter => {
-      RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
+      val it = RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
+      println("wtf search?" + it.length)
+      it
     })
   }
 
@@ -155,7 +157,9 @@ private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RDD[RTree[T
   override def getPartitions: Array[Partition] = firstParent[RTree[T, U]].partitions
 
   override def compute(split: Partition, context: TaskContext): Iterator[(U, T)] = {
-    RTreeRDD.eni2tupi(firstParent[RTree[T, U]].iterator(split, context).next().entries().toBlocking.getIterator)
+    val it = RTreeRDD.eni2tupi(firstParent[RTree[T, U]].iterator(split, context).next().entries().toBlocking.getIterator)
+    println("wtf compute?" + it.length)
+    it
   }
 
   override def clearDependencies() {
