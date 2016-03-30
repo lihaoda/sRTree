@@ -26,13 +26,10 @@ object RTreeRDD {
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
           println(iter.length)
-          val builder = RTree.star()
-          println("@@@@@@@@@@")
-          var tree = builder.createRTree[T, S]()
-          println("==========================")
-          iter.foreach( a => {
-            tree = tree.add(a)
-          })
+          var tree = RTree.star().createRTree[T, S]()
+          while(iter.hasNext) {
+            tree = tree.add(iter.next())
+          }
           Iterator(tree)
         }, true)
       )
@@ -51,8 +48,9 @@ object RTreeRDD {
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
           var tree: RTree[T, S] = RTree.star().create()
-          iter.foreach {
-            a => tree = tree.add((f(a), a))
+          while(iter.hasNext) {
+            val a = iter.next()
+            tree = tree.add((f(a), a))
           }
           Iterator(tree)
         },
