@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="bfe63cf8-7917-42e5-bd5a-da9cd90dc697" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/spark-rtree.iml" afterPath="$PROJECT_DIR$/spark-rtree.iml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/spark/rdd/RTreeRDD.scala" afterPath="$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/spark/rdd/RTreeRDD.scala" />
     </list>
     <ignored path="spark-rtree.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -27,21 +26,21 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="pom.xml" pinned="false" current-in-tab="true">
+      <file leaf-file-name="pom.xml" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/pom.xml">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.43766233">
+            <state vertical-scroll-proportion="-4.265823">
               <caret line="18" column="17" selection-start-line="18" selection-start-column="17" selection-end-line="18" selection-end-column="17" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="RTreeRDD.scala" pinned="false" current-in-tab="false">
+      <file leaf-file-name="RTreeRDD.scala" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/spark/rdd/RTreeRDD.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0">
-              <caret line="31" column="47" selection-start-line="31" selection-start-column="47" selection-end-line="31" selection-end-column="47" />
+            <state vertical-scroll-proportion="0.39575973">
+              <caret line="29" column="29" selection-start-line="29" selection-start-column="29" selection-end-line="29" selection-end-column="29" />
               <folding>
                 <element signature="e#39#104#0" expanded="true" />
               </folding>
@@ -65,8 +64,8 @@
         <option value="$PROJECT_DIR$/src/main/scala/RTreeRDD.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/DataTest.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/benchmark/DataTest.scala" />
-        <option value="$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/spark/rdd/RTreeRDD.scala" />
         <option value="$PROJECT_DIR$/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/spark/rdd/RTreeRDD.scala" />
       </list>
     </option>
   </component>
@@ -763,12 +762,12 @@
       <workItem from="1459268085922" duration="3447000" />
       <workItem from="1459305160959" duration="1552000" />
       <workItem from="1459307409599" duration="65000" />
-      <workItem from="1459307523468" duration="194000" />
+      <workItem from="1459307523468" duration="233000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="40295000" />
+    <option name="totallyTimeSpent" value="40334000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-11" y="-11" width="1942" height="1042" extended-state="6" />
@@ -1209,21 +1208,21 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/spark/rdd/RTreeRDD.scala">
+    <entry file="file://$PROJECT_DIR$/pom.xml">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="31" column="47" selection-start-line="31" selection-start-column="47" selection-end-line="31" selection-end-column="47" />
-          <folding>
-            <element signature="e#39#104#0" expanded="true" />
-          </folding>
+        <state vertical-scroll-proportion="-4.265823">
+          <caret line="18" column="17" selection-start-line="18" selection-start-column="17" selection-end-line="18" selection-end-column="17" />
+          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/pom.xml">
+    <entry file="file://$PROJECT_DIR$/src/main/scala/edu/thu/cs/database/spark/rdd/RTreeRDD.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.43766233">
-          <caret line="18" column="17" selection-start-line="18" selection-start-column="17" selection-end-line="18" selection-end-column="17" />
-          <folding />
+        <state vertical-scroll-proportion="0.39575973">
+          <caret line="29" column="29" selection-start-line="29" selection-start-column="29" selection-end-line="29" selection-end-column="29" />
+          <folding>
+            <element signature="e#39#104#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

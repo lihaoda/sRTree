@@ -27,7 +27,7 @@ object RTreeRDD {
         partitionedRdd.mapPartitions(iter => {
           println(iter.length)
           val builder = RTree.star()
-          println("++++++++++")
+          println("@@@@@@@@@@")
           var tree = builder.createRTree[T, S]()
           println("==========================")
           iter.foreach( a => {
