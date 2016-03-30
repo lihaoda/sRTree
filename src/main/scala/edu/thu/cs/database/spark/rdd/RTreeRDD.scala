@@ -28,7 +28,7 @@ object RTreeRDD {
           println(iter.length)
           val builder = RTree.star()
           println("++++++++++")
-          var tree = builder.create[T, S]()
+          var tree = builder.createRTree[T, S]()
           println("==========================")
           iter.foreach( a => {
             tree = tree.add(a)
