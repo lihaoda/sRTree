@@ -26,6 +26,7 @@ object RTreeRDD {
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
           println("build tree ....")
+          println("iter length:" + iter.length)
           var tree = RTree.star().createRTree[T, S]()
           var k = 0
           while(iter.hasNext) {
@@ -145,7 +146,6 @@ private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RDD[RTree[T
   def search(r:Rectangle):RDD[(U, T)] = {
     firstParent[RTree[T, U]].mapPartitions(iter => {
       val it = RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
-      println("wtf search?" + it.length)
       it
     })
   }
@@ -162,7 +162,6 @@ private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RDD[RTree[T
 
   override def compute(split: Partition, context: TaskContext): Iterator[(U, T)] = {
     val it = RTreeRDD.eni2tupi(firstParent[RTree[T, U]].iterator(split, context).next().entries().toBlocking.getIterator)
-    println("wtf compute?" + it.length)
     it
   }
 
