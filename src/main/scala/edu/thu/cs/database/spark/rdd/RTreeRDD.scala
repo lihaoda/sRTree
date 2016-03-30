@@ -25,8 +25,6 @@ object RTreeRDD {
       }
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
-          println("build tree ....")
-          println("iter length:" + iter.length)
           var tree = RTree.star().createRTree[T, S]()
           var k = 0
           while(iter.hasNext) {
