@@ -26,13 +26,9 @@ object RTreeRDD {
       new RTreeRDD[S, T](
         partitionedRdd.mapPartitions(iter => {
           var tree = RTree.star().createRTree[T, S]()
-          var k = 0
           while(iter.hasNext) {
-            k += 1
-            println("in: " + k)
             tree = tree.add(iter.next())
           }
-          println("out: " + k)
           Iterator(tree)
         }, true)
       )
