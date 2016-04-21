@@ -17,6 +17,8 @@
         <spark.version>1.6.1</spark.version>
         <jmh.version>1.11.3</jmh.version>
     </properties>
+
+
     <repositories>
         <repository>
             <id>my</id>
@@ -117,18 +119,27 @@
             <scope>test</scope>
         </dependency>
 
+        <!--
         <dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>junit-extras</artifactId>
             <version>0.3</version>
             <scope>test</scope>
         </dependency>
+        -->
 
         <dependency>
             <groupId>edu.thu.database</groupId>
             <artifactId>rtree</artifactId>
             <version>0.8-RC8-SNAPSHOT</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.davidmoten</groupId>
+            <artifactId>rtree</artifactId>
+            <version>0.7.5</version>
+        </dependency>
+
 
         <dependency>
             <groupId>org.scala-lang</groupId>

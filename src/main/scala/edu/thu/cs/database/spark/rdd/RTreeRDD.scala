@@ -14,49 +14,36 @@ import scala.reflect.ClassTag
 
 object RTreeRDD {
 
-  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry](rdd: RDD[(S, T)]) {
-    def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
-      val partitionedRdd = {
-        if(numPartitions > 0) {
-          rdd.repartition(numPartitions)
-        } else {
-          rdd
-        }
+  class RTreeRDDImpl[U <: Geometry, T: ClassTag](rdd: RDD[(U, T)]) extends RDD[RTree[T, U]](rdd) {
+    override def getPartitions: Array[Partition] = firstParent[(U, T)].partitions
+    override def compute(split: Partition, context: TaskContext): Iterator[RTree[T, U]] = {
+      val it = firstParent[(U, T)].iterator(split, context)
+      var tree = RTree.star().create[T, U]()
+      while(it.hasNext) {
+        tree = tree.add(it.next())
       }
-      new RTreeRDD[S, T](
-        partitionedRdd.mapPartitions(iter => {
-          var tree = RTree.star().createRTree[T, S]()
-          while(iter.hasNext) {
-            tree = tree.add(iter.next())
-          }
-          Iterator(tree)
-        }, true)
-      )
+      Iterator(tree)
     }
   }
 
-  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry](rdd: RDD[T]) {
-    def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
-      val partitionedRdd = {
-        if(numPartitions > 0) {
-          rdd.repartition(numPartitions)
-        } else {
-          rdd
-        }
-      }
-      new RTreeRDD[S, T](
-        partitionedRdd.mapPartitions(iter => {
-          var tree: RTree[T, S] = RTree.star().create()
-          while(iter.hasNext) {
-            val a = iter.next()
-            tree = tree.add((f(a), a))
-          }
-          Iterator(tree)
-        },
-          true)
-      )
+  def repartitionRDDorNot[T: ClassTag](rdd: RDD[T], numPartitions: Int): RDD[T] = {
+    if (numPartitions > 0) {
+      rdd.repartition(numPartitions)
+    } else {
+      rdd
     }
   }
+
+  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry](rdd: RDD[(S, T)]) {
+    def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] =
+      new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
+  }
+
+  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry](rdd: RDD[T]) {
+    def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] =
+      new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions).map(a => (f(a),a))))
+  }
+
 
 
   implicit def en2tup[A, B <: Geometry](a:Entry[A, B]):(B, A) = (a.geometry(), a.value())
@@ -116,7 +103,7 @@ object RTreeRDD {
 
 
 
-private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RDD[RTree[T, U]])
+private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RTreeRDD.RTreeRDDImpl[U, T])
   extends RDD[(U, T)](prev) {
 
   /*
@@ -147,10 +134,6 @@ private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RDD[RTree[T
   def saveAsIndexFile(path:String):Unit = {
 
   }
-
-
-
-  override val partitioner = firstParent[RTree[T, U]].partitioner
 
   override def getPartitions: Array[Partition] = firstParent[RTree[T, U]].partitions
 
