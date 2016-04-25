@@ -50,34 +50,33 @@ class RTreePartitioner(var recs: Array[Rectangle]) extends Partitioner {
   }
 
   @throws(classOf[IOException])
-  private def writeObject(out: ObjectOutputStream): Unit = Utils.tryOrIOException {
+  private def writeObject(out: ObjectOutputStream): Unit = {
     val sfactory = SparkEnv.get.serializer
     sfactory match {
       case js: JavaSerializer => out.defaultWriteObject()
       case _ =>
         out.writeObject(recs)
-
-        val ser = sfactory.newInstance()
-        Utils.serializeViaNestedStream(out, ser) { stream =>
-          stream.writeObject(scala.reflect.classTag[Array[K]])
-          stream.writeObject(rangeBounds)
-        }
     }
   }
 
   @throws(classOf[IOException])
-  private def readObject(in: ObjectInputStream): Unit = Utils.tryOrIOException {
+  private def readObject(in: ObjectInputStream): Unit = {
     val sfactory = SparkEnv.get.serializer
     sfactory match {
       case js: JavaSerializer => in.defaultReadObject()
       case _ =>
         recs = in.readObject().asInstanceOf[Array[Rectangle]]
-
-        val ser = sfactory.newInstance()
-        Utils.deserializeViaNestedStream(in, ser) { ds =>
-          implicit val classTag = ds.readObject[ClassTag[Array[K]]]()
-          rangeBounds = ds.readObject[Array[K]]()
-        }
     }
   }
 }
+
+object RTreePartitioner {
+  def getRTreeRecs[T <: Geometry](sampleData:Array[T], recNum:Int):Array[Rectangle] = {
+    new Array[Rectangle](recNum);
+  }
+  def create[T <: Geometry](sampleData:Array[T], numPartitions:Int): RTreePartitioner = {
+    new RTreePartitioner(getRTreeRecs(sampleData, numPartitions-1))
+  }
+}
+
+
