@@ -74,6 +74,21 @@ object RTreeRDD {
     }
   }
 
+  implicit class RTreeSaveFunctions[U <: Geometry : ClassTag, T <: java.io.Serializable: ClassTag](rdd: RTreeRDD[U,T]) {
+
+    def search(r:Rectangle):RDD[(U, T)] = {
+      (if(rdd.partitionPruned) {
+        PartitionPruningRDD.create(rdd.prev, rdd.partitionRecs(_).intersects(r))
+      } else {
+        rdd.firstParent[RTree[T, U]]
+      }).mapPartitions(iter => {
+        val it = RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
+        it
+      })
+    }
+
+  }
+
   implicit class RTreeFunctionsForRTreeRDD[T: ClassTag, U <: Geometry : ClassTag](rdd: RDD[RTree[T, U]]) {
 
     def getPartitionRecs:Array[Rectangle] = {
@@ -196,17 +211,6 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     }
   }
   */
-
-  def search(r:Rectangle):RDD[(U, T)] = {
-    (if(partitionPruned) {
-      PartitionPruningRDD.create(prev, partitionRecs(_).intersects(r))
-    } else {
-      firstParent[RTree[T, U]]
-    }).mapPartitions(iter => {
-      val it = RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
-      it
-    })
-  }
 
   def saveAsRTreeFile(path:String):Unit = {
     prev
