@@ -38,7 +38,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
+  implicit class RTreeFunctionsForTuple[T <: Serializable, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
     def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
       new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
@@ -54,7 +54,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[T]) {
+  implicit class RTreeFunctionsForSingle[T <: Serializable, S <: Geometry : ClassTag](rdd: RDD[T]) {
     def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
