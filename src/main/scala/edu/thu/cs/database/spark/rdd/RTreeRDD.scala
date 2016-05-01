@@ -45,11 +45,12 @@ object RTreeRDD {
 
     def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       require(numPartitions > 0);
+      rdd.cache();
       val samplePos = rdd.takeSample(false, sampleNum).map(_._1).array.asInstanceOf[Array[S]];
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions);
-      new RTreeRDD[S, T](
-        new RTreeRDDImpl(
-          new ShuffledRDD(rdd, rddPartitioner)))
+      val shuffledRDD = new ShuffledRDD[S, T, T](rdd, rddPartitioner);
+      val rtreeImpl = new RTreeRDDImpl(shuffledRDD);
+      new RTreeRDD[S, T](rtreeImpl)
     }
   }
 
