@@ -11,6 +11,7 @@ import edu.thu.cs.database.spark.rdd.RTreeRDD
 import edu.thu.cs.database.spark.rdd.RTreeRDD._
 
 object DataTest {
+
   def main(args: Array[String]): Unit = {
     println("Hello, world!")
     if(args.length < 1) {
@@ -20,11 +21,11 @@ object DataTest {
       .setAppName("RTreeRddTest")
     val sc = new SparkContext(conf)
     val data = sc.textFile(args(0)).map ( s => {
+      import edu.thu.cs.database.spark.rdd.RTreeRDD._
       val strs = s.split(" ")
-      (Geometries.point(strs(1).toDouble, strs(2).toDouble), strs(0).toInt)
+      (Geometries.point(strs(1).toDouble, strs(2).toDouble), strs(0).toInt.toSer1)
     })
 
-    var tree: RTree[Int, Point] = RTree.star().create()
     data.cache()
     val single = data.buildRTree(1)
     val multi = data.buildRTree(50)
