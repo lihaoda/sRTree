@@ -49,7 +49,7 @@ object RTreeRDD {
       new RTreeRDD[S, T](
         new RTreeRDDImpl(
           new ShuffledRDD(rdd,
-            RTreePartitioner.create(samplePos, numPartitions))))
+            RTreePartitioner.create[S](samplePos, numPartitions))))
     }
   }
 
