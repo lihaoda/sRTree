@@ -8,6 +8,7 @@ import edu.thu.cs.database.spark.partitioner.RTreePartitioner
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
+import rx.functions.Func1
 
 import scala.collection.JavaConversions.asScalaIterator
 import scala.reflect.ClassTag
@@ -65,14 +66,14 @@ object RTreeRDD {
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
     def rtreeFile[T <: java.io.Serializable : ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
-      /*
-      val rteeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
+
+      val rtreeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
         val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
         ser.read(is, x._2.getLength, InternalStructure.SINGLE_ARRAY)
       })
-      */
-      val rtreeRDD = sc.objectFile[RTree[T, U]](path);
+
+      //val rtreeRDD = sc.objectFile[RTree[T, U]](path);
       new RTreeRDD(rtreeRDD, partitionPruned)
     }
   }
@@ -205,17 +206,29 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   }
   */
 
-  def saveAsRTreeFile(path:String):Unit = {
-    prev.saveAsObjectFile(path);
-    /*
+  def saveAsRTreeFile(path:String, ser: T => Array[Byte], deser: Array[Byte] => T):Unit = {
+    prev
       .map(tree => {
         val os = new ByteArrayOutputStream();
-        val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
+        val ser = new com.github.davidmoten.rtree.Serializers.SerializerFlatBuffersTypedBuilder(new Func1[T, Array[Byte]](){
+          override def call(t: T): Array[Byte] = ser(t)
+        }, new Func1[Array[Byte], T](){
+          override def call(t: Array[Byte]): T = deser(t)
+        }, null).create[U]()
+          /*
+          flatBuffers()[T, U]
+              .serializer[T](new Func1[T, Array[Byte]](){
+                override def call(t: T): Array[Byte] = ser(t)
+              })
+            .deserializer(new Func1[Array[Byte], T](){
+              override def call(t: Array[Byte]): T = deser(t)
+            })
+            */
         ser.write(tree, os);
         (NullWritable.get(), new BytesWritable(os.toByteArray))
       })
       .saveAsSequenceFile(path)
-      */
+
   }
 
   def search(r:Rectangle):RDD[(U, T)] = {
