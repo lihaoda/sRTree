@@ -2,7 +2,7 @@ package edu.thu.cs.database.spark.rdd
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
-import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle}
+import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
@@ -82,6 +82,7 @@ object RTreeRDD {
 
     def getPartitionRecs:Array[Rectangle] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
+        /*
         val tree = iter.next();
         val mbrOption = tree.mbr();
         if(iter.hasNext) {
@@ -91,7 +92,8 @@ object RTreeRDD {
           Some((tc.partitionId(), mbrOption.get()))
         } else {
           None
-        }
+        }*/
+        Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
       }
       val recArray = new Array[Rectangle](rdd.partitions.length);
       val resultHandler = (index: Int, rst:Option[(Int, Rectangle)]) => {
@@ -175,7 +177,7 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   private var _partitionRecs:Array[Rectangle] = null;
   val partitionRecs:Array[Rectangle] = {
     import RTreeRDD._
-    if(_partitionRecs == null) {
+    if(_partitionRecs == null && partitionPruned) {
       _partitionRecs = prev.getPartitionRecs
       require(_partitionRecs.length == partitions.length)
       _partitionRecs.foreach(println)
