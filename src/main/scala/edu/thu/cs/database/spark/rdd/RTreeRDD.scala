@@ -5,7 +5,6 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
-import edu.thu.cs.database.spark.rdd.RTreeRDD.RTreeSer
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
@@ -19,11 +18,7 @@ import scala.reflect.ClassTag
 
 object RTreeRDD {
 
-  trait RTreeSer[M]
-  implicit def toSer1[T <: AnyVal]: RTreeSer[T] = new RTreeSer[T] {}
-  implicit def toSer2[T <: java.io.Serializable]: RTreeSer[T] = new RTreeSer[T] {}
-
-  class RTreeRDDImpl[U <: Geometry: ClassTag, T: RTreeSer](rdd: RDD[(U, T)]) extends RDD[RTree[T, U]](rdd) {
+  class RTreeRDDImpl[U <: Geometry: ClassTag, T: ClassTag](rdd: RDD[(U, T)]) extends RDD[RTree[T, U]](rdd) {
     override def getPartitions: Array[Partition] = firstParent[(U, T)].partitions
     override def compute(split: Partition, context: TaskContext): Iterator[RTree[T, U]] = {
       val it = firstParent[(U, T)].iterator(split, context)
@@ -43,7 +38,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForTuple[T <: RTreeSer, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
+  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
     def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
       new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
@@ -59,7 +54,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForSingle[T <: RTreeSer, S <: Geometry : ClassTag](rdd: RDD[T]) {
+  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[T]) {
     def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
@@ -69,7 +64,7 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    def rtreeFile[T <: RTreeSer, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
+    def rtreeFile[T <: java.io.Serializable : ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
       val rteeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
         val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
@@ -79,7 +74,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForRTreeRDD[T <: RTreeSer, U <: Geometry : ClassTag](rdd: RDD[RTree[T, U]]) {
+  implicit class RTreeFunctionsForRTreeRDD[T: ClassTag, U <: Geometry : ClassTag](rdd: RDD[RTree[T, U]]) {
 
     def getPartitionRecs:Array[Rectangle] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
@@ -172,7 +167,7 @@ object RTreeRDD {
 
 
 
-private[spark] class RTreeRDD[U <: Geometry : ClassTag, T <: RTreeSer] (var prev: RDD[RTree[T, U]], var partitionPruned:Boolean = false)
+private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: RDD[RTree[T, U]], var partitionPruned:Boolean = false)
   extends RDD[(U, T)](prev) {
 
   //prev.cache()

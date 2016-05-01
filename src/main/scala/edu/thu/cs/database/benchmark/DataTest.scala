@@ -21,9 +21,8 @@ object DataTest {
       .setAppName("RTreeRddTest")
     val sc = new SparkContext(conf)
     val data = sc.textFile(args(0)).map ( s => {
-      import edu.thu.cs.database.spark.rdd.RTreeRDD._
       val strs = s.split(" ")
-      (Geometries.point(strs(1).toDouble, strs(2).toDouble), strs(0).toInt.toSer1)
+      (Geometries.point(strs(1).toDouble, strs(2).toDouble), strs(0).toInt)
     })
 
     data.cache()
