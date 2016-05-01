@@ -45,7 +45,7 @@ object RTreeRDD {
 
     def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       require(numPartitions > 0);
-      val samplePos = rdd.takeSample(false, sampleNum).map(_._1);
+      val samplePos = rdd.takeSample(false, sampleNum).map(_._1).array;
       new RTreeRDD[S, T](
         new RTreeRDDImpl(
           new ShuffledRDD(rdd,
@@ -57,7 +57,7 @@ object RTreeRDD {
     def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
-    def buildRTreeWithRepartition(f: T => S, numPartitions: Int, sampleNum:Int = 10000) = {
+    def buildRTreeWithRepartition(f: T => S, numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTreeWithRepartition(numPartitions, sampleNum)
     }
   }
