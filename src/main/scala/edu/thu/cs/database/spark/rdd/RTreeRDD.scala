@@ -64,13 +64,23 @@ object RTreeRDD {
     }
   }
 
+  implicit def toFunc1[A, B](a: A => B):Func1[A, B] = new Func1[A, B] {
+    override def call(t: A): B = a(t)
+  }
+
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    def rtreeFile[T <: java.io.Serializable : ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
+    def rtreeFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
+                                                          ser: T => Array[Byte],
+                                                          deser: Array[Byte] => T,
+                                                          partitionPruned:Boolean = false): RTreeRDD[U, T] = {
 
       val rtreeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
-        val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
-        ser.read(is, x._2.getLength, InternalStructure.SINGLE_ARRAY)
+        val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]()
+          .serializer[T](RTreeRDD.toFunc1(ser))
+          .deserializer(RTreeRDD.toFunc1(deser))
+          .create[U]()
+        xser.read(is, x._2.getLength, InternalStructure.SINGLE_ARRAY)
       })
 
       //val rtreeRDD = sc.objectFile[RTree[T, U]](path);
@@ -210,11 +220,10 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     prev
       .map(tree => {
         val os = new ByteArrayOutputStream();
-        val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().serializer[T](new Func1[T, Array[Byte]](){
-                override def call(t: T): Array[Byte] = ser(t)
-          }).deserializer(new Func1[Array[Byte], T](){
-              override def call(t: Array[Byte]): T = deser(t)
-          }).create[U]()
+        val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]()
+          .serializer[T](RTreeRDD.toFunc1(ser))
+          .deserializer(RTreeRDD.toFunc1(deser))
+          .create[U]()
         xser.write(tree, os);
         (NullWritable.get(), new BytesWritable(os.toByteArray))
       })
