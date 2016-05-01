@@ -8,6 +8,7 @@ import com.github.davidmoten.rtree.RTree
 import com.github.davidmoten.rtree.geometry._
 import org.apache.spark._
 import edu.thu.cs.database.spark.rdd.RTreeRDD
+import java.nio.ByteBuffer
 import edu.thu.cs.database.spark.rdd.RTreeRDD._
 
 object DataTest {
@@ -28,7 +29,9 @@ object DataTest {
     data.cache()
     val single = data.buildRTree(1)
     val multi = data.buildRTree(50)
-    single.saveAsRTreeFile("/home/spark/test_data/small_saved.txt")
+    single.saveAsRTreeFile("/home/spark/test_data/small_saved.txt",
+      a => ByteBuffer.allocate(4).putInt(a).array(),
+      b => ByteBuffer.wrap(b).getInt)
     val rec = Geometries.rectangle(40,115,41,116)
     val singleResult = single.search(rec)
     val multiResult = multi.search(rec)
