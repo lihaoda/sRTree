@@ -75,7 +75,16 @@ object RTreeRDD {
   }
 
   implicit class RTreeSaveFunctions[U <: Geometry : ClassTag, T <: java.io.Serializable: ClassTag](rdd: RTreeRDD[U,T]) {
-
+    def saveAsRTreeFile(path:String):Unit = {
+      rdd.prev
+        .map(tree => {
+          val os = new ByteArrayOutputStream();
+          val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
+          ser.write(tree, os);
+          (NullWritable.get(), new BytesWritable(os.toByteArray))
+        })
+        .saveAsSequenceFile(path)
+    }
   }
 
   implicit class RTreeFunctionsForRTreeRDD[T: ClassTag, U <: Geometry : ClassTag](rdd: RDD[RTree[T, U]]) {
