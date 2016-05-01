@@ -81,7 +81,7 @@ object RTreeRDD {
         val tree = iter.next();
         val mbrOption = tree.mbr();
         if(iter.hasNext) {
-          rdd.logWarning("More than one tree in single partition");
+          ;//rdd.logWarning("More than one tree in single partition");
         }
         if(mbrOption.isPresent) {
           Some((tc.partitionId(), mbrOption.get()))
@@ -95,7 +95,7 @@ object RTreeRDD {
           case Some((idx, rec)) => require(idx == index)
             recArray(index) = rec
           case None =>
-            rdd.logWarning(s"mbr for index ${index} not exist!");
+            //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
       SparkContext.getOrCreate().runJob[RTree[T, U], Rectangle](rdd, getPartitionMbr, rdd.partitions.indices, resultHandler);
