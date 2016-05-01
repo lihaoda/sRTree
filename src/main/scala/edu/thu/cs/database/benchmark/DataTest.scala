@@ -28,6 +28,8 @@ object DataTest {
     data.cache()
     val single = data.buildRTree(1)
     val multi = data.buildRTree(50)
+    val f = new RTreeRDD.RTreeSaveFunctions(single)
+    f.saveAsRTreeFile("/home/spark/test_data/small_saved.txt")
     val rec = Geometries.rectangle(40,115,41,116)
     val singleResult = single.search(rec)
     val multiResult = multi.search(rec)

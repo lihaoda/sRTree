@@ -64,26 +64,13 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    def rtreeFile[T <: java.io.Serializable : ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
+    def rtreeFile[T <: Serializable, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
       val rteeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
         val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
         ser.read(is, x._2.getLength, InternalStructure.SINGLE_ARRAY)
       })
       new RTreeRDD(rteeRDD, partitionPruned)
-    }
-  }
-
-  implicit class RTreeSaveFunctions[U <: Geometry : ClassTag, T <: java.io.Serializable: ClassTag](rdd: RTreeRDD[U,T]) {
-    def saveAsRTreeFile(path:String):Unit = {
-      rdd.prev
-        .map(tree => {
-          val os = new ByteArrayOutputStream();
-          val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
-          ser.write(tree, os);
-          (NullWritable.get(), new BytesWritable(os.toByteArray))
-        })
-        .saveAsSequenceFile(path)
     }
   }
 
@@ -117,6 +104,9 @@ object RTreeRDD {
       recArray
     }
   }
+
+
+
 
 
 
@@ -177,7 +167,7 @@ object RTreeRDD {
 
 
 
-private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: RDD[RTree[T, U]], var partitionPruned:Boolean = false)
+private[spark] class RTreeRDD[U <: Geometry : ClassTag, T <: Serializable] (var prev: RDD[RTree[T, U]], var partitionPruned:Boolean = false)
   extends RDD[(U, T)](prev) {
 
   //prev.cache()
@@ -193,7 +183,6 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     }
     _partitionRecs
   }
-
 
   /*
   private var rtree: Option[RTree[T, U]] = None
@@ -212,6 +201,17 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     }
   }
   */
+
+  def saveAsRTreeFile(path:String):Unit = {
+    prev
+      .map(tree => {
+        val os = new ByteArrayOutputStream();
+        val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
+        ser.write(tree, os);
+        (NullWritable.get(), new BytesWritable(os.toByteArray))
+      })
+      .saveAsSequenceFile(path)
+  }
 
   def search(r:Rectangle):RDD[(U, T)] = {
     (if(partitionPruned) {
