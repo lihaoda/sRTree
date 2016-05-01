@@ -22,7 +22,7 @@
     <repositories>
         <repository>
             <id>my</id>
-            <url>file://${project.basedir}/../repo</url>
+            <url>${project.basedir}/../repo</url>
         </repository>
     </repositories>
 
@@ -134,11 +134,11 @@
             <version>0.8-RC8-SNAPSHOT</version>
         </dependency>
 
-        <dependency>
+        <!--dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>rtree</artifactId>
             <version>0.7.5</version>
-        </dependency>
+        </dependency -->
 
 
         <dependency>
