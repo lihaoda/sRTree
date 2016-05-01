@@ -97,7 +97,7 @@ object RTreeRDD {
             rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
-      SparkContext.getOrCreate().runJob[RTree[T, U], Rectangle](this, getPartitionMbr, rdd.partitions.indices, resultHandler);
+      SparkContext.getOrCreate().runJob[RTree[T, U], Rectangle](rdd, getPartitionMbr, rdd.partitions.indices, resultHandler);
       recArray
     }
   }
