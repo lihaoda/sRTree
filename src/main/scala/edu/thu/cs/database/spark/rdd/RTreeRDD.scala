@@ -210,12 +210,12 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     prev
       .map(tree => {
         val os = new ByteArrayOutputStream();
-        val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().serializer[T](new Func1[T, Array[Byte]](){
+        val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().serializer[T](new Func1[T, Array[Byte]](){
                 override def call(t: T): Array[Byte] = ser(t)
           }).deserializer(new Func1[Array[Byte], T](){
               override def call(t: Array[Byte]): T = deser(t)
           }).create[U]()
-        ser.write(tree, os);
+        xser.write(tree, os);
         (NullWritable.get(), new BytesWritable(os.toByteArray))
       })
       .saveAsSequenceFile(path)
