@@ -18,7 +18,7 @@ import scala.reflect.ClassTag
 
 object RTreeRDD {
 
-  class RTreeRDDImpl[U <: Geometry, T: ClassTag](rdd: RDD[(U, T)]) extends RDD[RTree[T, U]](rdd) {
+  class RTreeRDDImpl[U <: Geometry: ClassTag, T: ClassTag](rdd: RDD[(U, T)]) extends RDD[RTree[T, U]](rdd) {
     override def getPartitions: Array[Partition] = firstParent[(U, T)].partitions
     override def compute(split: Partition, context: TaskContext): Iterator[RTree[T, U]] = {
       val it = firstParent[(U, T)].iterator(split, context)
@@ -38,7 +38,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry](rdd: RDD[(S, T)]) {
+  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
     def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
       new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
@@ -46,7 +46,7 @@ object RTreeRDD {
     def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       require(numPartitions > 0);
       rdd.cache();
-      val samplePos = rdd.takeSample(false, sampleNum).map(_._1).array.asInstanceOf[Array[S]];
+      val samplePos = rdd.takeSample(false, sampleNum).map(_._1);
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions);
       val shuffledRDD = new ShuffledRDD[S, T, T](rdd, rddPartitioner);
       val rtreeImpl = new RTreeRDDImpl(shuffledRDD);
@@ -54,7 +54,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry](rdd: RDD[T]) {
+  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[T]) {
     def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
@@ -64,7 +64,7 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    def rtreeFile[T: ClassTag, U <: Geometry](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
+    def rtreeFile[T: ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
       val rteeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
         val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
@@ -74,7 +74,7 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForRTreeRDD[T: ClassTag, U <: Geometry](rdd: RDD[RTree[T, U]]) {
+  implicit class RTreeFunctionsForRTreeRDD[T: ClassTag, U <: Geometry : ClassTag](rdd: RDD[RTree[T, U]]) {
 
     def getPartitionRecs:Array[Rectangle] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
@@ -105,10 +105,10 @@ object RTreeRDD {
 
 
 
-  implicit def en2tup[A, B <: Geometry](a:Entry[A, B]):(B, A) = (a.geometry(), a.value())
-  implicit def tup2en[A, B <: Geometry](a:(B, A)):Entry[A, B] = Entries.entry(a._2, a._1)
-  implicit def eni2tupi[A, B <: Geometry](iter: Iterator[Entry[A, B]]):Iterator[(B, A)] = iter.map(RTreeRDD.en2tup)
-  implicit def tupi2eni[A, B <: Geometry](iter: Iterator[(B, A)]):Iterator[Entry[A, B]] = iter.map(RTreeRDD.tup2en)
+  implicit def en2tup[A, B <: Geometry : ClassTag](a:Entry[A, B]):(B, A) = (a.geometry(), a.value())
+  implicit def tup2en[A, B <: Geometry : ClassTag](a:(B, A)):Entry[A, B] = Entries.entry(a._2, a._1)
+  implicit def eni2tupi[A, B <: Geometry : ClassTag](iter: Iterator[Entry[A, B]]):Iterator[(B, A)] = iter.map(en2tup[A,B])
+  implicit def tupi2eni[A, B <: Geometry : ClassTag](iter: Iterator[(B, A)]):Iterator[Entry[A, B]] = iter.map(tup2en[A,B])
 
   /*implicit def toIterator[A](o:Observable[A]): Iterator[A] = o.toBlocking.getIterator*/  /*new Iterator[A] {
     var rstIter:Option[Iterator[A]] = None
@@ -162,7 +162,7 @@ object RTreeRDD {
 
 
 
-private[spark] class RTreeRDD[U <: Geometry, T: ClassTag] (var prev: RDD[RTree[T, U]], var partitionPruned:Boolean = false)
+private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: RDD[RTree[T, U]], var partitionPruned:Boolean = false)
   extends RDD[(U, T)](prev) {
 
   //prev.cache()
