@@ -65,12 +65,15 @@ object RTreeRDD {
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
     def rtreeFile[T <: java.io.Serializable : ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
+      /*
       val rteeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
         val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
         ser.read(is, x._2.getLength, InternalStructure.SINGLE_ARRAY)
       })
-      new RTreeRDD(rteeRDD, partitionPruned)
+      */
+      val rtreeRDD = sc.objectFile[RTree[T, U]](path);
+      new RTreeRDD(rtreeRDD, partitionPruned)
     }
   }
 
@@ -203,7 +206,8 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   */
 
   def saveAsRTreeFile(path:String):Unit = {
-    prev
+    prev.saveAsObjectFile(path);
+    /*
       .map(tree => {
         val os = new ByteArrayOutputStream();
         val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
@@ -211,6 +215,7 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
         (NullWritable.get(), new BytesWritable(os.toByteArray))
       })
       .saveAsSequenceFile(path)
+      */
   }
 
   def search(r:Rectangle):RDD[(U, T)] = {
