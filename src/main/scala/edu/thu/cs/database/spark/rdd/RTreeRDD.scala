@@ -80,7 +80,7 @@ object RTreeRDD {
 
   implicit class RTreeFunctionsForRTreeRDD[T: ClassTag, U <: Geometry : ClassTag](rdd: RDD[RTree[T, U]]) {
 
-    def getPartitionRecs:Array[Rectangle] = {
+    def getPartitionRecs():Array[Rectangle] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
         val tree = iter.next();
         val mbrOption = tree.mbr();
@@ -175,7 +175,7 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   private var _partitionRecs:Array[Rectangle] = null;
   val partitionRecs:Array[Rectangle] = {
     if(_partitionRecs == null) {
-      _partitionRecs = prev.getPartitionRecs
+      _partitionRecs = prev.getPartitionRecs()
       require(_partitionRecs.length == partitions.length)
       _partitionRecs.foreach(println)
     }
