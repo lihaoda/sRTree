@@ -64,7 +64,7 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    def rtreeFile[T: ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
+    def rtreeFile[T: java.io.Serializable : ClassTag, U <: Geometry : ClassTag](path:String, partitionPruned:Boolean = false): RTreeRDD[U, T] = {
       val rteeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
         val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
@@ -212,7 +212,7 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     prev
       .map(tree => {
         val os = new ByteArrayOutputStream();
-        val ser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]().javaIo[T, U]();
+        val ser = com.github.davidmoten.rtree.Serializers.flatBuffers().javaIo[T, U]();
         ser.write(tree, os);
         (NullWritable.get(), new BytesWritable(os.toByteArray))
       })
