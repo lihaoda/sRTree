@@ -92,14 +92,17 @@ object RTreeRDD {
 
     def getPartitionRecs:Array[Rectangle] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
-
-        val tree = iter.next();
-        val mbrOption = tree.mbr();/*
+        if(iter.hasNext) {
+          val tree = iter.next();
+          val mbrOption = tree.mbr();/*
         if(iter.hasNext) {
           ;//rdd.logWarning("More than one tree in single partition");
         }*/
-        if(mbrOption.isPresent) {
-          Some((tc.partitionId(), mbrOption.get()))
+          if(mbrOption.isPresent) {
+            Some((tc.partitionId(), mbrOption.get()))
+          } else {
+            None
+          }
         } else {
           None
         }
@@ -110,6 +113,7 @@ object RTreeRDD {
         rst match {
           case Some((idx, rec)) => require(idx == index)
             recArray(index) = rec
+            println(idx, rec)
           case None =>
             //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
