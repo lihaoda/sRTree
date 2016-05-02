@@ -40,11 +40,11 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
-    def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
+    def buildRTree(numPartitions:Int = 100):RTreeRDD[S, T] = {
       new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
 
-    def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
+    def buildRTreeWithRepartition(numPartitions: Int = 100, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       require(numPartitions > 0);
       rdd.cache();
       val samplePos = rdd.takeSample(false, sampleNum).map(_._1);
@@ -56,10 +56,10 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[T]) {
-    def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
+    def buildRTree(f: T => S, numPartitions:Int = 100):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
-    def buildRTreeWithRepartition(f: T => S, numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
+    def buildRTreeWithRepartition(f: T => S, numPartitions: Int = 100, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTreeWithRepartition(numPartitions, sampleNum)
     }
   }
@@ -72,7 +72,7 @@ object RTreeRDD {
     def rtreeFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
                                                           ser: T => Array[Byte],
                                                           deser: Array[Byte] => T,
-                                                          partitionPruned:Boolean = false): RTreeRDD[U, T] = {
+                                                          partitionPruned:Boolean = true): RTreeRDD[U, T] = {
 
       val rtreeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
         val is = new ByteArrayInputStream(x._2.getBytes);
@@ -181,10 +181,10 @@ object RTreeRDD {
 
 
 
-private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: RDD[RTree[T, U]], var partitionPruned:Boolean = false)
+private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: RDD[RTree[T, U]], @transient var partitionPruned:Boolean = true)
   extends RDD[(U, T)](prev) {
 
-  //prev.cache()
+  prev.cache()
 
 
   private var _partitionRecs:Array[Rectangle] = null;
