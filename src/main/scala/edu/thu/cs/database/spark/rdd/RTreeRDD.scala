@@ -92,7 +92,7 @@ object RTreeRDD {
 
     def getPartitionRecs:Array[Rectangle] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
-        /*
+
         val tree = iter.next();
         val mbrOption = tree.mbr();
         if(iter.hasNext) {
@@ -102,8 +102,8 @@ object RTreeRDD {
           Some((tc.partitionId(), mbrOption.get()))
         } else {
           None
-        }*/
-        Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
+        }
+        //Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
       }
       val recArray = new Array[Rectangle](rdd.partitions.length);
       val resultHandler = (index: Int, rst:Option[(Int, Rectangle)]) => {
