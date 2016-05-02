@@ -193,7 +193,6 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     if(_partitionRecs == null && partitionPruned) {
       _partitionRecs = prev.getPartitionRecs
       require(_partitionRecs.length == partitions.length)
-      _partitionRecs.foreach(println)
     }
     _partitionRecs
   }
