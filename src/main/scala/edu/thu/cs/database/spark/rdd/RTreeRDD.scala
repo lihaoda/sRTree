@@ -94,10 +94,10 @@ object RTreeRDD {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
 
         val tree = iter.next();
-        val mbrOption = tree.mbr();
+        val mbrOption = tree.mbr();/*
         if(iter.hasNext) {
           ;//rdd.logWarning("More than one tree in single partition");
-        }
+        }*/
         if(mbrOption.isPresent) {
           Some((tc.partitionId(), mbrOption.get()))
         } else {
