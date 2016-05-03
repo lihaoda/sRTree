@@ -101,10 +101,13 @@ object RTreeRDD {
           if(mbrOption.isPresent) {
             Some((tc.partitionId(), mbrOption.get()))
           } else {
+            /*
             if(tree.isReloaded())
               Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
             else
               Some(tc.partitionId(), Geometries.rectangle(0,0,1,1))
+              */
+            None
           }
         } else {
           None
@@ -118,7 +121,6 @@ object RTreeRDD {
             require(idx == index)
             recArray(index) = rec
           case None =>
-            recArray(index) = Geometries.rectangle(-1,-1,-1,-1)
             //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
@@ -241,7 +243,12 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
 
   def search(r:Rectangle):RDD[(U, T)] = {
     (if(partitionPruned) {
-      PartitionPruningRDD.create(prev, partitionRecs(_).intersects(r))
+      PartitionPruningRDD.create(prev, idx => {
+        if(partitionRecs(idx) == null)
+          false
+        else
+          partitionRecs(idx).intersects(r)
+      })
     } else {
       firstParent[RTree[T, U]]
     }).mapPartitions(iter => {
@@ -256,8 +263,12 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   override def getPartitions: Array[Partition] = firstParent[RTree[T, U]].partitions
 
   override def compute(split: Partition, context: TaskContext): Iterator[(U, T)] = {
-    val it = RTreeRDD.eni2tupi(firstParent[RTree[T, U]].iterator(split, context).next().entries().toBlocking.getIterator)
-    it
+    val iter = firstParent[RTree[T, U]].iterator(split, context)
+    if (iter.hasNext) {
+      RTreeRDD.eni2tupi(iter.next().entries().toBlocking.getIterator)
+    } else {
+      Iterator()
+    }
   }
 
   override def clearDependencies() {
