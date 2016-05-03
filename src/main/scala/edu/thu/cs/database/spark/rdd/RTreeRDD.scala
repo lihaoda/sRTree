@@ -32,7 +32,7 @@ object RTreeRDD {
   }
 
   def repartitionRDDorNot[T: ClassTag](rdd: RDD[T], numPartitions: Int): RDD[T] = {
-    if (numPartitions > 0) {
+    if (numPartitions > 0 && numPartitions != rdd.getNumPartitions) {
       rdd.repartition(numPartitions)
     } else {
       rdd
@@ -112,7 +112,6 @@ object RTreeRDD {
       val resultHandler = (index: Int, rst:Option[(Int, Rectangle)]) => {
         rst match {
           case Some((idx, rec)) =>
-            println(idx, index, rec)
             require(idx == index)
             recArray(index) = rec
           case None =>
@@ -120,7 +119,7 @@ object RTreeRDD {
         }
       }
       SparkContext.getOrCreate().runJob(rdd, getPartitionMbr, rdd.partitions.indices, resultHandler);
-      recArray.foreach(println)
+      recArray.zipWithIndex.foreach(println)
       recArray
     }
   }
