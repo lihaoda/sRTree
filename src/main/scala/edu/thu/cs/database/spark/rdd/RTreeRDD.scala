@@ -101,10 +101,10 @@ object RTreeRDD {
           if(mbrOption.isPresent) {
             Some((tc.partitionId(), mbrOption.get()))
           } else {
-            if(tree.reloaded)
+            if(tree.isReloaded())
               Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
             else
-              Some(tc.partitionId(), Geometries.rectangle(0,0,0,-1))
+              Some(tc.partitionId(), Geometries.rectangle(0,0,1,1))
           }
         } else {
           None
