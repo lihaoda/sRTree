@@ -120,6 +120,7 @@ object RTreeRDD {
         }
       }
       SparkContext.getOrCreate().runJob(rdd, getPartitionMbr, rdd.partitions.indices, resultHandler);
+      recArray.foreach(println)
       recArray
     }
   }
