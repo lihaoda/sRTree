@@ -101,7 +101,7 @@ object RTreeRDD {
           if(mbrOption.isPresent) {
             Some((tc.partitionId(), mbrOption.get()))
           } else {
-            None
+            Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
           }
         } else {
           None
@@ -115,6 +115,7 @@ object RTreeRDD {
             require(idx == index)
             recArray(index) = rec
           case None =>
+            recArray(index) = Geometries.rectangle(-1,-1,-1,-1)
             //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
