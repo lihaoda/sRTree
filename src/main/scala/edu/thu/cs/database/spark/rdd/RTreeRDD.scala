@@ -111,14 +111,15 @@ object RTreeRDD {
       val recArray = new Array[Rectangle](rdd.partitions.length);
       val resultHandler = (index: Int, rst:Option[(Int, Rectangle)]) => {
         rst match {
-          case Some((idx, rec)) => require(idx == index)
+          case Some((idx, rec)) =>
+            println(idx, index, rec)
+            require(idx == index)
             recArray(index) = rec
           case None =>
             //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
       SparkContext.getOrCreate().runJob(rdd, getPartitionMbr, rdd.partitions.indices, resultHandler);
-      recArray.zipWithIndex.foreach(println)
       recArray
     }
   }
