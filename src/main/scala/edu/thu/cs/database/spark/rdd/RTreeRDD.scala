@@ -113,12 +113,12 @@ object RTreeRDD {
         rst match {
           case Some((idx, rec)) => require(idx == index)
             recArray(index) = rec
-            println(idx, rec)
           case None =>
             //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
       SparkContext.getOrCreate().runJob(rdd, getPartitionMbr, rdd.partitions.indices, resultHandler);
+      recArray.zipWithIndex.foreach(println)
       recArray
     }
   }
