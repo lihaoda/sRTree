@@ -40,11 +40,11 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
-    def buildRTree(numPartitions:Int = 100):RTreeRDD[S, T] = {
+    def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
       new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
 
-    def buildRTreeWithRepartition(numPartitions: Int = 100, sampleNum:Int = 10000):RTreeRDD[S, T] = {
+    def buildRTreeWithRepartition(numPartitions: Int = -1, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       require(numPartitions > 0);
       rdd.cache();
       val samplePos = rdd.takeSample(false, sampleNum).map(_._1);
@@ -56,10 +56,10 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[T]) {
-    def buildRTree(f: T => S, numPartitions:Int = 100):RTreeRDD[S, T] = {
+    def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
-    def buildRTreeWithRepartition(f: T => S, numPartitions: Int = 100, sampleNum:Int = 10000):RTreeRDD[S, T] = {
+    def buildRTreeWithRepartition(f: T => S, numPartitions: Int = -1, sampleNum:Int = 10000):RTreeRDD[S, T] = {
       rdd.map(a => (f(a), a)).buildRTreeWithRepartition(numPartitions, sampleNum)
     }
   }
@@ -241,8 +241,11 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     } else {
       firstParent[RTree[T, U]]
     }).mapPartitions(iter => {
-      val it = RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
-      it
+      if (iter.hasNext) {
+        RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
+      } else {
+        Iterator()
+      }
     })
   }
 
