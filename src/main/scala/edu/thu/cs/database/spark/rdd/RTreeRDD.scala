@@ -5,7 +5,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
-import org.apache.hadoop.io.{BytesWritable, NullWritable}
+import org.apache.hadoop.io.{BytesWritable, NullWritable, }
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
 import rx.functions.Func1
@@ -230,12 +230,23 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   def saveAsRTreeFile(path:String, ser: T => Array[Byte], deser: Array[Byte] => T):Unit = {
     prev
       .map(tree => {
-        val os = new ByteArrayOutputStream();
-        val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]()
-          .serializer[T](RTreeRDD.toFunc1(ser))
-          .deserializer(RTreeRDD.toFunc1(deser))
-          .create[U]()
-        xser.write(tree, os);
+        var os:ByteArrayOutputStream = null;
+        val getSerilized = () => {
+          os = new ByteArrayOutputStream();
+          val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]()
+            .serializer[T](RTreeRDD.toFunc1(ser))
+            .deserializer(RTreeRDD.toFunc1(deser))
+            .create[U]()
+          xser.write(tree, os);
+        }
+        try {
+          getSerilized();
+        } catch  {
+          case a:_ =>
+            os = null;
+            System.gc();
+            getSerilized();
+        }
         (NullWritable.get(), new BytesWritable(os.toByteArray))
       })
       .saveAsSequenceFile(path)
