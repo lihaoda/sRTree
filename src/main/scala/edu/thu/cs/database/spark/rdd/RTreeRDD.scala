@@ -5,7 +5,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
-import org.apache.hadoop.io.{BytesWritable, NullWritable, }
+import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
 import rx.functions.Func1
