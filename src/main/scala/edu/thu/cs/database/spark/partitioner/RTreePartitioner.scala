@@ -72,10 +72,12 @@ class RTreePartitioner(var recs: Array[Rectangle]) extends Partitioner {
 
 object RTreePartitioner {
   def getRTreeRecs[T <: Geometry](sampleData:Array[T], recNum:Int):Array[Rectangle] = {
-    new Array[Rectangle](recNum);
+    HilbertRecBuilder.getRTreeRecs(sampleData.map(_.mbr()), recNum)
   }
   def create[T <: Geometry](sampleData:Array[T], numPartitions:Int): RTreePartitioner = {
-    new RTreePartitioner(getRTreeRecs(sampleData, numPartitions-1))
+    val recs = getRTreeRecs(sampleData, numPartitions-1);
+    recs.foreach(println)
+    new RTreePartitioner(recs)
   }
 }
 
