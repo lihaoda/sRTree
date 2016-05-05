@@ -197,9 +197,10 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
 
   prev.cache()
 
-
+  @transient
   private var _partitionRecs:Array[Rectangle] = null;
-  val partitionRecs:Array[Rectangle] = {
+
+  def partitionRecs:Array[Rectangle] = {
     import RTreeRDD._
     if(_partitionRecs == null && partitionPruned) {
       _partitionRecs = prev.getPartitionRecs
