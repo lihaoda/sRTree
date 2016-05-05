@@ -242,7 +242,7 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
         try {
           getSerilized();
         } catch  {
-          case a:_ =>
+          case _: Throwable =>
             os = null;
             System.gc();
             getSerilized();
