@@ -17,7 +17,7 @@ class RTreeInputFormat[K, V] extends SequenceFileInputFormat[K, V]{
     val files = super.listStatus(job)
     files.zipWithIndex.foreach(t => {
       println(t._2)
-      println(t._1.getPath.toString, t._1.getLen, t._1.getSymlink.toString)
+      println(t._1.getPath.toString, t._1.getLen)
     })
     files
   }
