@@ -2,7 +2,7 @@ package edu.thu.cs.database.spark
 
 import java.io.IOException
 
-import org.apache.hadoop.mapred.{InputSplit, JobConf, SequenceFileInputFormat}
+import org.apache.hadoop.mapred.{FileSplit, InputSplit, JobConf, SequenceFileInputFormat}
 
 /**
   * Created by lihaoda on 2016/5/9.
@@ -14,7 +14,10 @@ class RTreeInputFormat[K, V] extends SequenceFileInputFormat[K, V]{
     val splits = super.getSplits(job, numSplits)
     splits.zipWithIndex.foreach(t => {
       println(t._2)
-      t._1.getLocations.foreach(println)
+      t._1 match {
+        case fs: FileSplit => println(fs.getPath.toString)
+        case a:_ => println("unknown")
+      }
     })
     splits
   }
