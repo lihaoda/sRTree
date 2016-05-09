@@ -4,8 +4,10 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
 import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
+import edu.thu.cs.database.spark.RTreeInputFormat
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
+import org.apache.hadoop.mapred.SequenceFileInputFormat
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
 import rx.functions.Func1
@@ -64,7 +66,7 @@ object RTreeRDD {
     }
   }
 
-  implicit def toFunc1[A, B](a: A => B):Func1[A, B] = new Func1[A, B] {
+  implicit def toFunc1[A, B](a: A => B):Func1[A, B] = new Func1[A, B] with java.io.Serializable {
     override def call(t: A): B = a(t)
   }
 
@@ -74,8 +76,10 @@ object RTreeRDD {
                                                           deser: Array[Byte] => T,
                                                           partitionPruned:Boolean = true): RTreeRDD[U, T] = {
 
-      val rtreeRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable]).map(x => {
-        val is = new ByteArrayInputStream(x._2.getBytes);
+      val inputFormatClass = classOf[RTreeInputFormat[NullWritable, BytesWritable]]
+      val seqRDD = sc.hadoopFile(path, inputFormatClass, classOf[NullWritable], classOf[BytesWritable])
+      val rtreeRDD = seqRDD.map(x => {
+        val is = new ByteArrayInputStream(x._2.getBytes)
         val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]()
           .serializer[T](RTreeRDD.toFunc1(ser))
           .deserializer(RTreeRDD.toFunc1(deser))

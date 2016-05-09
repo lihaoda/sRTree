@@ -74,7 +74,7 @@ object HilbertRecBuilder {
   }
   def getRTreeRecs(mbrs:Array[Rectangle], recNum:Int):Array[Rectangle] = {
     val hmbrs = hilbertialize(mbrs)
-    val subNum:Int = hmbrs.length / recNum
+    val subNum:Int = hmbrs.length / recNum + (if (hmbrs.length % recNum > 0) 1 else 0)
     hmbrs.grouped(subNum).map({
       _.reduce((a,b) => {
         Geometries.rectangle(
