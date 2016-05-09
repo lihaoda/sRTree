@@ -2,7 +2,7 @@ package edu.thu.cs.database.spark
 
 import java.io.IOException
 
-import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.{Path, FileSystem, FileStatus}
 import org.apache.hadoop.mapred.{FileSplit, InputSplit, JobConf, SequenceFileInputFormat}
 
 /**
@@ -10,7 +10,7 @@ import org.apache.hadoop.mapred.{FileSplit, InputSplit, JobConf, SequenceFileInp
   */
 class RTreeInputFormat[K, V] extends SequenceFileInputFormat[K, V]{
 
-
+  override protected def isSplitable(fs: FileSystem, filename: Path):Boolean = false
 
   @throws(classOf[IOException])
   override protected def listStatus (job: JobConf):Array[FileStatus] = {
