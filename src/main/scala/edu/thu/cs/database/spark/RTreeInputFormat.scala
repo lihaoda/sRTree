@@ -13,18 +13,11 @@ class RTreeInputFormat[K, V] extends SequenceFileInputFormat[K, V]{
   override protected def isSplitable(fs: FileSystem, filename: Path):Boolean = false
 
   @throws(classOf[IOException])
-  override protected def listStatus (job: JobConf):Array[FileStatus] = {
-    val files = super.listStatus(job)
-    files.zipWithIndex.foreach(t => {
-      println(t._2)
-      println(t._1.getPath.toString, t._1.getLen)
-    })
-    files
-  }
-
-  @throws(classOf[IOException])
   override def getSplits(job: JobConf, numSplits: Int): Array[InputSplit] = {
-    val splits = super.getSplits(job, numSplits)
+    val splits = super.getSplits(job, numSplits).sortBy {
+      case fs: FileSplit => fs.getPath.getName
+      case _ => ""
+    }
     splits.zipWithIndex.foreach(t => {
       println(t._2)
       t._1 match {
