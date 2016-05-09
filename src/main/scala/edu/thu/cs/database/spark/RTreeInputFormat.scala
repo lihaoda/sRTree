@@ -29,7 +29,7 @@ class RTreeInputFormat[K, V] extends SequenceFileInputFormat[K, V]{
       println(t._2)
       t._1 match {
         case fs: FileSplit =>
-          println(fs.getPath.toString)
+          println(fs.getPath.toString, fs.getStart, fs.getLength)
         case _ => println("unknown")
       }
     })
