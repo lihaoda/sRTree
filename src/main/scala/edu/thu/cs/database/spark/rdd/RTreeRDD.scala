@@ -79,7 +79,7 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    def rtreeFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
+    private def rtreeDataFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
                                                           ser: T => Array[Byte],
                                                           deser: Array[Byte] => T,
                                                           partitionPruned:Boolean = true): RTreeRDD[U, T] = {
@@ -98,12 +98,12 @@ object RTreeRDD {
       //val rtreeRDD = sc.objectFile[RTree[T, U]](path);
       new RTreeRDD(rtreeRDD, partitionPruned)
     }
-    def splitedRTreeFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
+    def rtreeFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
                                                                  ser: T => Array[Byte],
                                                                  deser: Array[Byte] => T,
                                                                  partitionPruned:Boolean = true): RTreeRDD[U, T] = {
       val paths = getActualSavePath(path)
-      val rdd = rtreeFile[T, U](paths._1, ser, deser, partitionPruned)
+      val rdd = rtreeDataFile[T, U](paths._1, ser, deser, partitionPruned)
       val global = sc.objectFile[(Rectangle, Int)](paths._2).collect().sortBy(_._2).map(_._1)
       rdd.setPartitionRecs(global)
       rdd
@@ -115,7 +115,7 @@ object RTreeRDD {
     def getPartitionRecs:Array[Rectangle] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
         if(iter.hasNext) {
-          val tree = iter.next();
+          val tree = iter.next()
           val mbrOption = tree.mbr();/*
         if(iter.hasNext) {
           ;//rdd.logWarning("More than one tree in single partition");
@@ -146,8 +146,7 @@ object RTreeRDD {
             //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
-      SparkContext.getOrCreate().runJob(rdd, getPartitionMbr, rdd.partitions.indices, resultHandler);
-      recArray.zipWithIndex.foreach(println)
+      SparkContext.getOrCreate().runJob(rdd, getPartitionMbr, rdd.partitions.indices, resultHandler)
       recArray
     }
   }
