@@ -33,6 +33,14 @@ object RTreeRDD {
     }
   }
 
+  def getActualSavePath(path:String) = {
+    if(path.endsWith("/") || path.endsWith("\\")) {
+      (path+"data", path+"global")
+    } else {
+      (path+"/data", path+"/global")
+    }
+  }
+
   def repartitionRDDorNot[T: ClassTag](rdd: RDD[T], numPartitions: Int): RDD[T] = {
     if (numPartitions > 0 && numPartitions != rdd.getNumPartitions) {
       rdd.repartition(numPartitions)
@@ -89,6 +97,16 @@ object RTreeRDD {
 
       //val rtreeRDD = sc.objectFile[RTree[T, U]](path);
       new RTreeRDD(rtreeRDD, partitionPruned)
+    }
+    def splitedRTreeFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
+                                                                 ser: T => Array[Byte],
+                                                                 deser: Array[Byte] => T,
+                                                                 partitionPruned:Boolean = true): RTreeRDD[U, T] = {
+      val paths = getActualSavePath(path)
+      val rdd = rtreeFile[T, U](paths._1, ser, deser, partitionPruned)
+      val global = sc.objectFile[(Rectangle, Int)](paths._2).collect().sortBy(_._2).map(_._1)
+      rdd.setPartitionRecs(global)
+      rdd
     }
   }
 
@@ -204,11 +222,16 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   @transient
   private var _partitionRecs:Array[Rectangle] = null;
 
+  def setPartitionRecs(recs:Array[Rectangle]) = {
+    require(recs.length == getNumPartitions)
+    _partitionRecs = recs;
+  }
+
   def partitionRecs:Array[Rectangle] = {
     import RTreeRDD._
     if(_partitionRecs == null && partitionPruned) {
       _partitionRecs = prev.getPartitionRecs
-      require(_partitionRecs.length == partitions.length)
+      require(_partitionRecs.length == getNumPartitions)
     }
     _partitionRecs
   }
@@ -232,6 +255,7 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
   */
 
   def saveAsRTreeFile(path:String, ser: T => Array[Byte], deser: Array[Byte] => T):Unit = {
+    val paths = RTreeRDD.getActualSavePath(path)
     prev
       .map(tree => {
         var os:ByteArrayOutputStream = null;
@@ -253,8 +277,8 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
         }
         (NullWritable.get(), new BytesWritable(os.toByteArray))
       })
-      .saveAsSequenceFile(path)
-
+      .saveAsSequenceFile(paths._1)
+    sparkContext.parallelize(partitionRecs.zipWithIndex).saveAsObjectFile(paths._2)
   }
 
   def search(r:Rectangle):RDD[(U, T)] = {

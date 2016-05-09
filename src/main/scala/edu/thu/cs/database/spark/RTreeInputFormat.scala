@@ -18,14 +18,6 @@ class RTreeInputFormat[K, V] extends SequenceFileInputFormat[K, V]{
       case fs: FileSplit => fs.getPath.getName
       case _ => ""
     }
-    splits.zipWithIndex.foreach(t => {
-      println(t._2)
-      t._1 match {
-        case fs: FileSplit =>
-          println(fs.getPath.toString, fs.getStart, fs.getLength)
-        case _ => println("unknown")
-      }
-    })
     splits
   }
 }
