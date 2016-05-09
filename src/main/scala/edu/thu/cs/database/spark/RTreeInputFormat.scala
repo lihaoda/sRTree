@@ -13,7 +13,8 @@ class RTreeInputFormat[K, V] extends SequenceFileInputFormat[K, V]{
   override def getSplits(job: JobConf, numSplits: Int): Array[InputSplit] = {
     val splits = super.getSplits(job, numSplits)
     splits.zipWithIndex.foreach(t => {
-      println(t._2, t._1.getLocations)
+      println(t._2)
+      t._1.getLocations.foreach(println)
     })
     splits
   }
