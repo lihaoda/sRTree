@@ -65,6 +65,11 @@ class NNOrdering() extends Ordering[(_, Double)] {
 }
 
 case class RTree(root: RTreeNode) extends Serializable {
+/*
+  def divideMBR():Array[MBR] = {
+
+  }
+*/
   def range(query: MBR): Array[(Shape, Int)] = {
     val ans = mutable.ArrayBuffer[(Shape, Int)]()
     val st = new mutable.Stack[RTreeNode]()

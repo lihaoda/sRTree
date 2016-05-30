@@ -2,10 +2,10 @@ package edu.thu.cs.database.spark.partitioner
 
 import java.io.{ObjectInputStream, ObjectOutputStream, IOException}
 
+import edu.thu.cs.database.spark.spatial._
 import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.{SparkEnv, Partitioner}
 
-import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle}
 import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 /**
   * Created by lihaoda on 16-4-21.
   */
-class RTreePartitioner(var recs: Array[Rectangle]) extends Partitioner {
+class RTreePartitioner(var recs: Array[MBR]) extends Partitioner {
 
   def noNegMod(x:Int, mod:Int):Int = {
     val rawMod = x % mod
@@ -23,7 +23,13 @@ class RTreePartitioner(var recs: Array[Rectangle]) extends Partitioner {
   override def numPartitions: Int = recs.length + 1
   override def getPartition(key: Any): Int = key match {
     case null => 0
-    case g: Geometry =>
+    case g: Point =>
+      val cand = recs.zipWithIndex.filter( a => g.intersects(a._1) )
+      if(cand.length > 0)
+        cand(noNegMod(g.hashCode, cand.length))._2
+      else
+        recs.length
+    case g: MBR =>
       val cand = recs.zipWithIndex.filter( a => g.intersects(a._1) )
       if(cand.length > 0)
         cand(noNegMod(g.hashCode, cand.length))._2
@@ -48,7 +54,7 @@ class RTreePartitioner(var recs: Array[Rectangle]) extends Partitioner {
     })
     result
   }
-
+  /*
   @throws(classOf[IOException])
   private def writeObject(out: ObjectOutputStream): Unit = {
     val sfactory = SparkEnv.get.serializer
@@ -68,13 +74,14 @@ class RTreePartitioner(var recs: Array[Rectangle]) extends Partitioner {
         recs = in.readObject().asInstanceOf[Array[Rectangle]]
     }
   }
+  */
 }
 
 object RTreePartitioner {
-  def getRTreeRecs[T <: Geometry](sampleData:Array[T], recNum:Int):Array[Rectangle] = {
-    HilbertRecBuilder.getRTreeRecs(sampleData.map(_.mbr()), recNum)
+  def getRTreeRecs(sampleData:Array[Point], recNum:Int):Array[MBR] = {
+    HilbertRecBuilder.getRTreeRecs(sampleData, recNum)
   }
-  def create[T <: Geometry](sampleData:Array[T], numPartitions:Int): RTreePartitioner = {
+  def create(sampleData:Array[Point], numPartitions:Int): RTreePartitioner = {
     val recs = getRTreeRecs(sampleData, numPartitions-1);
     recs.foreach(println)
     new RTreePartitioner(recs)

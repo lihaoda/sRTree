@@ -71,6 +71,7 @@
             <scope>test</scope>
         </dependency>
 
+        <!--
         <dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>flatbuffers-java</artifactId>
@@ -118,6 +119,7 @@
             <version>1.10.8</version>
             <scope>test</scope>
         </dependency>
+        -->
 
         <!--
         <dependency>
@@ -126,8 +128,6 @@
             <version>0.3</version>
             <scope>test</scope>
         </dependency>
-        -->
-
 
 
         <dependency>
@@ -135,6 +135,10 @@
             <artifactId>rtree</artifactId>
             <version>0.8-RC8-SNAPSHOT</version>
         </dependency>
+        -->
+
+
+
 
 
         <!--dependency>
