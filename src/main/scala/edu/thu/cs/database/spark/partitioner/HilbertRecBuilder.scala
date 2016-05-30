@@ -45,13 +45,11 @@ object HilbertRecBuilder {
       } else {
         if (x >= partition) {
           base += 3
-          var tmp = partition - 1 - y
+          val tmp = partition - 1 - y
           y = partition - 1 - (x - partition)
           x = tmp
         } else {
-          var tmp = y
-          y = x
-          x = tmp
+          (x, y) =  (y, x)
         }
       }
     }while (partition > 1)

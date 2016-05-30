@@ -1,18 +1,23 @@
 package edu.thu.cs.database.spark.rdd
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+//import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
-import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
-import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
-import edu.thu.cs.database.spark.RTreeInputFormat
+//import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+//import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
+//import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
+//import org.apache.hadoop.io.{BytesWritable, NullWritable}
+//import org.apache.hadoop.mapred.SequenceFileInputFormat
+//import edu.thu.cs.database.spark.RTreeInputFormat
+import edu.thu.cs.database.spark.rtree._
+import edu.thu.cs.database.spark.spatial._
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
-import org.apache.hadoop.io.{BytesWritable, NullWritable}
-import org.apache.hadoop.mapred.SequenceFileInputFormat
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
 import rx.functions.Func1
 
-import scala.collection.JavaConversions.asScalaIterator
+//import scala.collection.JavaConversions.asScalaIterator
 import scala.reflect.ClassTag
 
 /**
@@ -21,15 +26,21 @@ import scala.reflect.ClassTag
 
 object RTreeRDD {
 
-  class RTreeRDDImpl[U <: Geometry: ClassTag, T: ClassTag](rdd: RDD[(U, T)]) extends RDD[RTree[T, U]](rdd) {
-    override def getPartitions: Array[Partition] = firstParent[(U, T)].partitions
-    override def compute(split: Partition, context: TaskContext): Iterator[RTree[T, U]] = {
-      val it = firstParent[(U, T)].iterator(split, context)
-      var tree = RTree.star().create[T, U]()
-      while(it.hasNext) {
-        tree = tree.add(it.next())
+  class RTreeRDDImpl[T: ClassTag](rdd: RDD[(Point, T)], max_entry_per_node:Int = 25) extends RDD[(RTree, Array[(Point, T)])](rdd) {
+    override def getPartitions: Array[Partition] = firstParent[(Point, T)].partitions
+    override def compute(split: Partition, context: TaskContext): Iterator[(RTree, Array[(Point, T)])] = {
+      val it = firstParent[(Point, T)].iterator(split, context)
+      val b = mutable.ListBuffer[(Point, T)]()
+      while (it.hasNext) {
+        b += it.next
       }
-      Iterator(tree)
+      if(b.nonEmpty) {
+        //val geos = array.map(_._1).zipWithIndex
+        val tree = RTree(b.map(_._1).zipWithIndex.toArray, max_entry_per_node)
+        Iterator((tree, b.toArray))
+      } else {
+        Iterator()
+      }
     }
   }
 
@@ -49,27 +60,27 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForTuple[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[(S, T)]) {
-    def buildRTree(numPartitions:Int = -1):RTreeRDD[S, T] = {
-      new RTreeRDD[S, T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
+  implicit class RTreeFunctionsForTuple[T: ClassTag](rdd: RDD[(Point, T)]) {
+    def buildRTree(numPartitions:Int = -1):RTreeRDD[T] = {
+      new RTreeRDD[T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
 
-    def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
-      require(numPartitions > 0);
-      rdd.cache();
-      val samplePos = rdd.takeSample(false, sampleNum).map(_._1);
-      val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions);
-      val shuffledRDD = new ShuffledRDD[S, T, T](rdd, rddPartitioner);
-      val rtreeImpl = new RTreeRDDImpl(shuffledRDD);
-      new RTreeRDD[S, T](rtreeImpl)
+    def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[T] = {
+      require(numPartitions > 0)
+      rdd.cache()
+      val samplePos = rdd.takeSample(withReplacement = false, sampleNum).map(_._1)
+      val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions)
+      val shuffledRDD = new ShuffledRDD[Point, T, T](rdd, rddPartitioner)
+      val rtreeImpl = new RTreeRDDImpl(shuffledRDD)
+      new RTreeRDD[T](rtreeImpl)
     }
   }
 
-  implicit class RTreeFunctionsForSingle[T: ClassTag, S <: Geometry : ClassTag](rdd: RDD[T]) {
-    def buildRTree(f: T => S, numPartitions:Int = -1):RTreeRDD[S, T] = {
+  implicit class RTreeFunctionsForSingle[T: ClassTag](rdd: RDD[T]) {
+    def buildRTree(f: T => Point, numPartitions:Int = -1):RTreeRDD[T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
-    def buildRTreeWithRepartition(f: T => S, numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[S, T] = {
+    def buildRTreeWithRepartition(f: T => Point, numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[T] = {
       rdd.map(a => (f(a), a)).buildRTreeWithRepartition(numPartitions, sampleNum)
     }
   }
@@ -79,154 +90,59 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    private def rtreeDataFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
-                                                          ser: T => Array[Byte],
-                                                          deser: Array[Byte] => T,
-                                                          partitionPruned:Boolean = true): RTreeRDD[U, T] = {
-
-      val inputFormatClass = classOf[RTreeInputFormat[NullWritable, BytesWritable]]
-      val seqRDD = sc.hadoopFile(path, inputFormatClass, classOf[NullWritable], classOf[BytesWritable])
-      val rtreeRDD = seqRDD.map(x => {
-        val is = new ByteArrayInputStream(x._2.getBytes)
-        val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]()
-          .serializer[T](RTreeRDD.toFunc1(ser))
-          .deserializer(RTreeRDD.toFunc1(deser))
-          .create[U]()
-        xser.read(is, x._2.getLength, InternalStructure.SINGLE_ARRAY)
-      })
-
-      //val rtreeRDD = sc.objectFile[RTree[T, U]](path);
-      new RTreeRDD(rtreeRDD, partitionPruned)
-    }
-    def rtreeFile[T : ClassTag, U <: Geometry : ClassTag](path:String,
-                                                                 ser: T => Array[Byte],
-                                                                 deser: Array[Byte] => T,
-                                                                 partitionPruned:Boolean = true): RTreeRDD[U, T] = {
+    def rtreeFile[T : ClassTag](path:String, partitionPruned:Boolean = true): RTreeRDD[T] = {
       val paths = getActualSavePath(path)
-      val rdd = rtreeDataFile[T, U](paths._1, ser, deser, partitionPruned)
-      val global = sc.objectFile[(Rectangle, Int)](paths._2).collect().sortBy(_._2).map(_._1)
+      val rdd = new RTreeRDD[T](sc.objectFile(paths._1), partitionPruned)  //rtreeDataFile[T](paths._1, partitionPruned)
+      val global = sc.objectFile[(MBR, Int)](paths._2).collect().sortBy(_._2).map(_._1)
       rdd.setPartitionRecs(global)
       rdd
     }
   }
 
-  implicit class RTreeFunctionsForRTreeRDD[T: ClassTag, U <: Geometry : ClassTag](rdd: RDD[RTree[T, U]]) {
+  implicit class RTreeFunctionsForRTreeRDD[T: ClassTag](rdd: RDD[(RTree, Array[(Point, T)])]) {
 
-    def getPartitionRecs:Array[Rectangle] = {
-      val getPartitionMbr = (tc:TaskContext, iter:Iterator[RTree[T, U]]) => {
+    def getPartitionRecs:Array[MBR] = {
+      val getPartitionMbr = (tc:TaskContext, iter:Iterator[(RTree, Array[(Point, T)])]) => {
         if(iter.hasNext) {
-          val tree = iter.next()
-          val mbrOption = tree.mbr();/*
-        if(iter.hasNext) {
-          ;//rdd.logWarning("More than one tree in single partition");
-        }*/
-          if(mbrOption.isPresent) {
-            Some((tc.partitionId(), mbrOption.get()))
-          } else {
-            /*
-            if(tree.isReloaded())
-              Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
-            else
-              Some(tc.partitionId(), Geometries.rectangle(0,0,1,1))
-              */
-            None
-          }
+          val tree = iter.next()._1
+          val mbr = tree.root.m_mbr
+          Some((tc.partitionId(), mbr))
         } else {
           None
         }
-        //Some(tc.partitionId(), Geometries.rectangle(0,0,0,0))
       }
-      val recArray = new Array[Rectangle](rdd.partitions.length);
-      val resultHandler = (index: Int, rst:Option[(Int, Rectangle)]) => {
+      val recArray = new Array[MBR](rdd.partitions.length)
+      val resultHandler = (index: Int, rst:Option[(Int, MBR)]) => {
         rst match {
           case Some((idx, rec)) =>
             require(idx == index)
             recArray(index) = rec
           case None =>
-            //rdd.logWarning(s"mbr for index ${index} not exist!");
         }
       }
       SparkContext.getOrCreate().runJob(rdd, getPartitionMbr, rdd.partitions.indices, resultHandler)
       recArray
     }
   }
-
-
-
-
-
-
-  implicit def en2tup[A, B <: Geometry : ClassTag](a:Entry[A, B]):(B, A) = (a.geometry(), a.value())
-  implicit def tup2en[A, B <: Geometry : ClassTag](a:(B, A)):Entry[A, B] = Entries.entry(a._2, a._1)
-  implicit def eni2tupi[A, B <: Geometry : ClassTag](iter: Iterator[Entry[A, B]]):Iterator[(B, A)] = iter.map(en2tup[A,B])
-  implicit def tupi2eni[A, B <: Geometry : ClassTag](iter: Iterator[(B, A)]):Iterator[Entry[A, B]] = iter.map(tup2en[A,B])
-
-  /*implicit def toIterator[A](o:Observable[A]): Iterator[A] = o.toBlocking.getIterator*/  /*new Iterator[A] {
-    var rstIter:Option[Iterator[A]] = None
-
-    override def map[B](f: A=>B) = RTreeRDD.toIterator(
-      o.map(new Func1[A, B]() {
-        override def call(t: A): B = f(t)
-      })
-    )
-
-    override def flatMap[B](f: A => GenTraversableOnce[B]): Iterator[B] = RTreeRDD.toIterator {
-      o.flatMap(new Func1[A, Observable[B]](){
-        override def call(t: A): Observable[B] = {
-          Observable.from(new Iterable[B] {
-            override def iterator: Iterator[B] = f(t).toIterator
-          })
-        }
-      })
-    }
-
-    override def filter(f: A => Boolean): Iterator[A] = RTreeRDD.toIterator {
-      o.filter(new Func1[A, java.lang.Boolean]() {
-        override def call(t: A): java.lang.Boolean = f(t)
-      })
-    }
-
-    override def foreach[B](f: A=>B):Unit = {
-      o.forEach(new Action1[A](){
-        override def call(t: A): Unit = f(t)
-      })
-    }
-
-    override def hasNext = {
-      rstIter match {
-        case None =>
-          rstIter = Some(o.toBlocking.getIterator)
-      }
-      rstIter.get.hasNext
-    }
-
-    override def next = {
-      rstIter match {
-        case None =>
-          rstIter = Some(o.toBlocking.getIterator)
-      }
-      rstIter.get.next
-    }
-  }*/
 }
 
 
 
 
-private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: RDD[RTree[T, U]], @transient var partitionPruned:Boolean = true)
-  extends RDD[(U, T)](prev) {
+private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, T)])], @transient var partitionPruned:Boolean = true)
+  extends RDD[(Point, T)](prev) {
 
-  prev.cache()
+  //prev.cache()
 
   @transient
-  private var _partitionRecs:Array[Rectangle] = null;
+  private var _partitionRecs:Array[MBR] = null
 
-  def setPartitionRecs(recs:Array[Rectangle]) = {
+  def setPartitionRecs(recs:Array[MBR]) = {
     require(recs.length == getNumPartitions)
-    _partitionRecs = recs;
+    _partitionRecs = recs
   }
 
-  def partitionRecs:Array[Rectangle] = {
+  def partitionRecs:Array[MBR] = {
     import RTreeRDD._
     if(_partitionRecs == null && partitionPruned) {
       _partitionRecs = prev.getPartitionRecs
@@ -235,53 +151,15 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
     _partitionRecs
   }
 
-  /*
-  private var rtree: Option[RTree[T, U]] = None
-
-  private def getPartitionRTree(split: Partition, context: TaskContext): RTree[T, U] = {
-    rtree match {
-      case None =>
-        val tree: RTree[T, U] = RTree.star().create()
-        firstParent[T].iterator(split, context).foreach(a => tree.add(Entry.entry(a, f(a))))
-        rtree = Some(tree)
-        val rst = tree.entries()
-        rst.toBlocking.first()
-        rtree.get
-      case Some(tree) =>
-        tree
-    }
-  }
-  */
-
-  def saveAsRTreeFile(path:String, ser: T => Array[Byte], deser: Array[Byte] => T):Unit = {
+  def saveAsRTreeFile(path:String):Unit = {
     val paths = RTreeRDD.getActualSavePath(path)
-    prev
-      .map(tree => {
-        var os:ByteArrayOutputStream = null;
-        val getSerilized = () => {
-          os = new ByteArrayOutputStream();
-          val xser = com.github.davidmoten.rtree.Serializers.flatBuffers[T, U]()
-            .serializer[T](RTreeRDD.toFunc1(ser))
-            .deserializer(RTreeRDD.toFunc1(deser))
-            .create[U]()
-          xser.write(tree, os);
-        }
-        try {
-          getSerilized();
-        } catch  {
-          case _: Throwable =>
-            os = null;
-            System.gc();
-            getSerilized();
-        }
-        (NullWritable.get(), new BytesWritable(os.toByteArray))
-      })
-      .saveAsSequenceFile(paths._1)
+    prev.saveAsObjectFile(paths._1)
     sparkContext.parallelize(partitionRecs.zipWithIndex).saveAsObjectFile(paths._2)
   }
 
-  def search(r:Rectangle):RDD[(U, T)] = {
+  def search(r:MBR):RDD[(Point, T)] = {
     (if(partitionPruned) {
+      prev.cache()
       PartitionPruningRDD.create(prev, idx => {
         if(partitionRecs(idx) == null)
           false
@@ -289,22 +167,28 @@ private[spark] class RTreeRDD[U <: Geometry : ClassTag, T: ClassTag] (var prev: 
           partitionRecs(idx).intersects(r)
       })
     } else {
-      firstParent[RTree[T, U]]
+      firstParent[(RTree, Array[(Point, T)])]
     }).mapPartitions(iter => {
       if (iter.hasNext) {
-        RTreeRDD.eni2tupi(iter.next().search(r).toBlocking.getIterator)
+        new Iterator[(Point, T)](){
+          val data = iter.next()
+          val rstIter = data._1.range(r).iterator
+          override def hasNext: Boolean = rstIter.hasNext
+          override def next(): (Point, T) = data._2(rstIter.next()._2)
+        }
       } else {
         Iterator()
       }
+      Iterator()
     })
   }
 
-  override def getPartitions: Array[Partition] = firstParent[RTree[T, U]].partitions
+  override def getPartitions: Array[Partition] = firstParent[(RTree, Array[(Point, T)])].partitions
 
-  override def compute(split: Partition, context: TaskContext): Iterator[(U, T)] = {
-    val iter = firstParent[RTree[T, U]].iterator(split, context)
+  override def compute(split: Partition, context: TaskContext): Iterator[(Point, T)] = {
+    val iter = firstParent[(RTree, Array[(Point, T)])].iterator(split, context)
     if (iter.hasNext) {
-      RTreeRDD.eni2tupi(iter.next().entries().toBlocking.getIterator)
+      iter.next()._2.iterator
     } else {
       Iterator()
     }
