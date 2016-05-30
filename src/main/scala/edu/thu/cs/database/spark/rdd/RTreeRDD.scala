@@ -164,7 +164,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
     if(_partitionRecs == null && partitionPruned) {
       _partitionRecs = prev.getPartitionRecs
       require(_partitionRecs.length == getNumPartitions)
-      _partitionRecs.zipWithIndex.foreach(println)
+      //_partitionRecs.zipWithIndex.foreach(println)
     }
     _partitionRecs
   }
@@ -192,7 +192,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
           false
         } else {
           val rst = partitionRecs(idx).intersects(r)
-          println(idx, rst)
+          //println(idx, rst)
           rst
         }
       })
