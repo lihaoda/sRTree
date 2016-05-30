@@ -209,7 +209,6 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
       } else {
         Iterator()
       }
-      Iterator()
     })
   }
 
