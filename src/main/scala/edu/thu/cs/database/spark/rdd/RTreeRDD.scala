@@ -100,9 +100,8 @@ object RTreeRDD {
     def rtreeFile[T : ClassTag](path:String, partitionPruned:Boolean = true): RTreeRDD[T] = {
       val paths = getActualSavePath(path)
       val inputFormatClass = classOf[RTreeInputFormat[NullWritable, BytesWritable]]
-      val seqRDD = sc.hadoopFile(path, inputFormatClass, classOf[NullWritable], classOf[BytesWritable])
+      val seqRDD = sc.hadoopFile(paths._1, inputFormatClass, classOf[NullWritable], classOf[BytesWritable])
       val rtreeRDD = seqRDD.map(x => {
-
         val bis = new ByteArrayInputStream(x._2.getBytes)
         val ois = new ObjectInputStream(bis)
         ois.readObject.asInstanceOf[(RTree, Array[(Point, T)])]
@@ -170,7 +169,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
 
   def saveAsRTreeFile(path:String):Unit = {
     val paths = RTreeRDD.getActualSavePath(path)
-
+    prev.cache()
     prev
       .map(x => {
         val bos = new ByteArrayOutputStream()
