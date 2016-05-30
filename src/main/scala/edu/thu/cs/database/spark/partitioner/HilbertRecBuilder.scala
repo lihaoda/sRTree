@@ -49,7 +49,9 @@ object HilbertRecBuilder {
           y = partition - 1 - (x - partition)
           x = tmp
         } else {
-          (x, y) =  (y, x)
+          val tmp = x;
+          x = y;
+          y = tmp;
         }
       }
     }while (partition > 1)
