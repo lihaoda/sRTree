@@ -7,15 +7,15 @@ package edu.thu.cs.database.benchmark
 import java.io.{ByteArrayInputStream, ObjectInputStream, ObjectOutputStream, ByteArrayOutputStream}
 
 import com.github.davidmoten.guavamini.Sets
-import com.github.davidmoten.rtree.{Entries, RTree, Entry}
-import com.github.davidmoten.rtree.geometry._
+//import com.github.davidmoten.rtree.{Entries, RTree, Entry}
+//import com.github.davidmoten.rtree.geometry._
 import org.apache.spark._
 import edu.thu.cs.database.spark.rdd.RTreeRDD
 import java.nio.ByteBuffer
 import edu.thu.cs.database.spark.rdd.RTreeRDD._
 
 object DataTest {
-
+/*
   def rtreeTest() = {
     val a: Entry[String, Point] = Entries.entry("p1", Geometries.point(1, 2))
     val b: Entry[String, Point] = Entries.entry("p2", Geometries.point(3, 4))
@@ -80,4 +80,5 @@ object DataTest {
     joinResult.takeSample(false, 10).foreach(println)
     */
   }
+  */
 }
