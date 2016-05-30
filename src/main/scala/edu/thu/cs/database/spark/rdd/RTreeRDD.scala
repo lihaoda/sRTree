@@ -3,7 +3,14 @@ package edu.thu.cs.database.spark.rdd
 //import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
 //import scala.collection.JavaConverters._
+import java.io._
+
+import edu.thu.cs.database.spark.RTreeInputFormat
+import org.apache.hadoop.io.{BytesWritable, NullWritable}
+
 import scala.collection.mutable
+
+import org.apache.spark.util.Utils
 
 //import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 //import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
@@ -92,7 +99,15 @@ object RTreeRDD {
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
     def rtreeFile[T : ClassTag](path:String, partitionPruned:Boolean = true): RTreeRDD[T] = {
       val paths = getActualSavePath(path)
-      val rdd = new RTreeRDD[T](sc.objectFile(paths._1), partitionPruned)  //rtreeDataFile[T](paths._1, partitionPruned)
+      val inputFormatClass = classOf[RTreeInputFormat[NullWritable, BytesWritable]]
+      val seqRDD = sc.hadoopFile(path, inputFormatClass, classOf[NullWritable], classOf[BytesWritable])
+      val rtreeRDD = seqRDD.map(x => {
+
+        val bis = new ByteArrayInputStream(x._2.getBytes)
+        val ois = new ObjectInputStream(bis)
+        ois.readObject.asInstanceOf[(RTree, Array[(Point, T)])]
+      })
+      val rdd = new RTreeRDD[T](rtreeRDD, partitionPruned)  //rtreeDataFile[T](paths._1, partitionPruned)
       val global = sc.objectFile[(MBR, Int)](paths._2).collect().sortBy(_._2).map(_._1)
       rdd.setPartitionRecs(global)
       rdd
@@ -138,6 +153,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
   private var _partitionRecs:Array[MBR] = null
 
   def setPartitionRecs(recs:Array[MBR]) = {
+    recs.zipWithIndex.foreach(println)
     require(recs.length == getNumPartitions)
     _partitionRecs = recs
   }
@@ -147,13 +163,23 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
     if(_partitionRecs == null && partitionPruned) {
       _partitionRecs = prev.getPartitionRecs
       require(_partitionRecs.length == getNumPartitions)
+      _partitionRecs.zipWithIndex.foreach(println)
     }
     _partitionRecs
   }
 
   def saveAsRTreeFile(path:String):Unit = {
     val paths = RTreeRDD.getActualSavePath(path)
-    prev.saveAsObjectFile(paths._1)
+
+    prev
+      .map(x => {
+        val bos = new ByteArrayOutputStream()
+        val oos = new ObjectOutputStream(bos)
+        oos.writeObject(x)
+        oos.close()
+        (NullWritable.get(), new BytesWritable(bos.toByteArray))
+      })
+      .saveAsSequenceFile(paths._1)
     sparkContext.parallelize(partitionRecs.zipWithIndex).saveAsObjectFile(paths._2)
   }
 
