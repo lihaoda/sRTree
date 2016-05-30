@@ -186,10 +186,12 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
     (if(partitionPruned) {
       prev.cache()
       PartitionPruningRDD.create(prev, idx => {
-        if(partitionRecs(idx) == null)
+        if(partitionRecs(idx) == null) {
           false
-        else
+        } else {
+          println(idx, true)
           partitionRecs(idx).intersects(r)
+        }
       })
     } else {
       firstParent[(RTree, Array[(Point, T)])]
