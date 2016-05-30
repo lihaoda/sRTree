@@ -189,8 +189,9 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
         if(partitionRecs(idx) == null) {
           false
         } else {
-          println(idx, true)
-          partitionRecs(idx).intersects(r)
+          val rst = partitionRecs(idx).intersects(r)
+          println(idx, rst)
+          rst
         }
       })
     } else {
