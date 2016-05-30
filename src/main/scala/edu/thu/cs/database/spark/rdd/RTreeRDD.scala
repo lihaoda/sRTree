@@ -148,6 +148,8 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
 
   //prev.cache()
 
+  def getImpl() = prev
+
   @transient
   private var _partitionRecs:Array[MBR] = null
 
