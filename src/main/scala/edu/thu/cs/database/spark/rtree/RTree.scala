@@ -93,6 +93,30 @@ case class RTree(root: RTreeNode) extends Serializable {
     rst.toArray
   }
 
+  def leafMBR():Array[MBR] = {
+    val que = new mutable.Queue[RTreeNode]()
+    val rst = mutable.ArrayBuffer[MBR]()
+    que.enqueue(root)
+    while(que.nonEmpty) {
+      val now = que.dequeue()
+      if(now.isLeaf) {
+        rst += now.m_mbr
+      } else {
+        now.m_child.foreach {
+          case RTreeInternalEntry(mbr, node) =>
+            if(node.isLeaf) {
+              rst += node.m_mbr
+            } else {
+              que.enqueue(node)
+            }
+          case _ =>
+            throw new Exception("Wrong Node Type!")
+        }
+      }
+    }
+    rst.toArray
+  }
+
   def range(query: MBR): Array[(Shape, Int)] = {
     val ans = mutable.ArrayBuffer[(Shape, Int)]()
     val st = new mutable.Stack[RTreeNode]()
