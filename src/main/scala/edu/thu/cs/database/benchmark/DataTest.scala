@@ -6,7 +6,6 @@ package edu.thu.cs.database.benchmark
 
 import java.io.{ByteArrayInputStream, ObjectInputStream, ObjectOutputStream, ByteArrayOutputStream}
 
-import com.github.davidmoten.guavamini.Sets
 //import com.github.davidmoten.rtree.{Entries, RTree, Entry}
 //import com.github.davidmoten.rtree.geometry._
 import org.apache.spark._
