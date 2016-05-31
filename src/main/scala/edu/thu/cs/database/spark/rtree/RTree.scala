@@ -74,7 +74,7 @@ case class RTree(root: RTreeNode) extends Serializable {
       val now = que.dequeue()
       if(now.isLeaf) {
         rst += now.m_mbr
-      } else if(rst.size + now.m_child.length <= num) {
+      } else if(rst.size + now.m_child.length + que.length <= num) {
         now.m_child.foreach {
           case RTreeInternalEntry(mbr, node) =>
             if(node.isLeaf) {

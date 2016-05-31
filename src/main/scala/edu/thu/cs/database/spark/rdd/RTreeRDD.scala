@@ -22,7 +22,6 @@ import edu.thu.cs.database.spark.spatial._
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
-import rx.functions.Func1
 
 //import scala.collection.JavaConversions.asScalaIterator
 import scala.reflect.ClassTag
@@ -97,7 +96,7 @@ object RTreeRDD {
     def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[T] = {
       require(numPartitions > 0)
       rdd.cache()
-      val samplePos = rdd.takeSample(false, sampleNum).map(_._1)
+      val samplePos = rdd.map(_._1).takeSample(false, sampleNum)
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions)
       val shuffledRDD = new ShuffledRDD[Point, T, T](rdd, rddPartitioner)
       val rtreeImpl = new RTreeRDDImpl(shuffledRDD)
@@ -112,10 +111,6 @@ object RTreeRDD {
     def buildRTreeWithRepartition(f: T => Point, numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[T] = {
       rdd.map(a => (f(a), a)).buildRTreeWithRepartition(numPartitions, sampleNum)
     }
-  }
-
-  implicit def toFunc1[A, B](a: A => B):Func1[A, B] = new Func1[A, B] with java.io.Serializable {
-    override def call(t: A): B = a(t)
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
