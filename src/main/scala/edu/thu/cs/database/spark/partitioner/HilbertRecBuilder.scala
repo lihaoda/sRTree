@@ -83,8 +83,8 @@ object HilbertRecBuilder {
             Math.min(a.low.coord(1), b.low.coord(1)))
           ),
           Point(Array(
-            Math.min(a.high.coord(0), b.high.coord(0)),
-            Math.min(a.high.coord(1), b.high.coord(1)))
+            Math.max(a.high.coord(0), b.high.coord(0)),
+            Math.max(a.high.coord(1), b.high.coord(1)))
           )
         )
       })
