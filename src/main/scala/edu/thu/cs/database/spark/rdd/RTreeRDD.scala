@@ -33,6 +33,28 @@ import scala.reflect.ClassTag
 
 object RTreeRDD {
 
+
+  def test(): Unit = {
+
+    val data = SparkContext.getOrCreate().textFile("/home/spark/test_data/small.txt").map ( s => {
+      val strs = s.split(" ")
+      (Point(Array(strs(1).toDouble, strs(2).toDouble)), strs(0).toInt)
+    }).reduceByKey((a,b) => {
+      a
+    },100)
+    //val rtreeRDD = data.buildRTree()
+
+    val xrec = MBR(Point(Array(40,115)),Point(Array(41,116)))
+
+    val oneRst = data.filter(a => {
+      xrec.intersects(a._1)
+    })
+    val st = System.currentTimeMillis
+    val cnt = oneRst.count()
+    println(s"multiResult count: ${cnt}")
+    val ed = System.currentTimeMillis
+  }
+
   class RTreeRDDImpl[T: ClassTag](rdd: RDD[(Point, T)], max_entry_per_node:Int = 25) extends RDD[(RTree, Array[(Point, T)])](rdd) {
     override def getPartitions: Array[Partition] = firstParent[(Point, T)].partitions
     override def compute(split: Partition, context: TaskContext): Iterator[(RTree, Array[(Point, T)])] = {
@@ -154,7 +176,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
   private var _partitionRecs:Array[MBR] = null
 
   def setPartitionRecs(recs:Array[MBR]) = {
-    recs.zipWithIndex.foreach(println)
+    //recs.zipWithIndex.foreach(println)
     require(recs.length == getNumPartitions)
     _partitionRecs = recs
   }
