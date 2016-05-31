@@ -87,7 +87,7 @@ object RTreePartitioner {
   }
   def create(sampleData:Array[Point], numPartitions:Int): RTreePartitioner = {
     val recs = getRTreeRecs(sampleData, numPartitions-1);
-    //recs.foreach(println)
+    recs.foreach(println)
     new RTreePartitioner(recs)
   }
 }
