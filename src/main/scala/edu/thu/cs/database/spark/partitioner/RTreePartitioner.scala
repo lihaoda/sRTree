@@ -83,7 +83,7 @@ class RTreePartitioner(var recs: Array[MBR]) extends Partitioner {
 object RTreePartitioner {
   def getRTreeRecs(sampleData:Array[Point], recNum:Int):Array[MBR] = {
     //HilbertRecBuilder.getRTreeRecs(sampleData, recNum)
-    RTree(sampleData.map((_, 1)), 25).divideMBR(recNum)
+    RTree(sampleData.map((_, 1)), 5).divideMBR(recNum)
   }
   def create(sampleData:Array[Point], numPartitions:Int): RTreePartitioner = {
     val recs = getRTreeRecs(sampleData, numPartitions-1);
