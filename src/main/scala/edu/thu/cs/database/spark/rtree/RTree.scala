@@ -65,11 +65,34 @@ class NNOrdering() extends Ordering[(_, Double)] {
 }
 
 case class RTree(root: RTreeNode) extends Serializable {
-/*
-  def divideMBR():Array[MBR] = {
 
+  def divideMBR(num:Int):Array[MBR] = {
+    val que = new mutable.Queue[RTreeNode]()
+    val rst = mutable.ArrayBuffer[MBR]()
+    que.enqueue(root)
+    while(que.nonEmpty) {
+      val now = que.dequeue()
+      if(now.isLeaf) {
+        rst += now.m_mbr
+      } else if(rst.size + now.m_child.length <= num) {
+        now.m_child.foreach {
+          case RTreeInternalEntry(mbr, node) =>
+            if(node.isLeaf) {
+              rst += node.m_mbr
+            } else {
+              que.enqueue(node)
+            }
+          case _ =>
+            throw new Exception("Wrong Node Type!")
+        }
+      } else {
+        rst += now.m_mbr
+        rst ++= que.dequeueAll(a => true).map(_.m_mbr)
+      }
+    }
+    rst.toArray
   }
-*/
+
   def range(query: MBR): Array[(Shape, Int)] = {
     val ans = mutable.ArrayBuffer[(Shape, Int)]()
     val st = new mutable.Stack[RTreeNode]()

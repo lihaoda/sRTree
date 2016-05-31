@@ -3,6 +3,7 @@ package edu.thu.cs.database.spark.partitioner
 import java.io.{ObjectInputStream, ObjectOutputStream, IOException}
 
 import edu.thu.cs.database.spark.spatial._
+import edu.thu.cs.database.spark.rtree._
 import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.{SparkEnv, Partitioner}
 
@@ -14,6 +15,8 @@ import scala.reflect.ClassTag
   * Created by lihaoda on 16-4-21.
   */
 class RTreePartitioner(var recs: Array[MBR]) extends Partitioner {
+
+  println(s"Partition num: ${recs.length}")
 
   def noNegMod(x:Int, mod:Int):Int = {
     val rawMod = x % mod
@@ -79,7 +82,8 @@ class RTreePartitioner(var recs: Array[MBR]) extends Partitioner {
 
 object RTreePartitioner {
   def getRTreeRecs(sampleData:Array[Point], recNum:Int):Array[MBR] = {
-    HilbertRecBuilder.getRTreeRecs(sampleData, recNum)
+    //HilbertRecBuilder.getRTreeRecs(sampleData, recNum)
+    RTree(sampleData.map((_, 1)), 25).divideMBR(recNum)
   }
   def create(sampleData:Array[Point], numPartitions:Int): RTreePartitioner = {
     val recs = getRTreeRecs(sampleData, numPartitions-1);
