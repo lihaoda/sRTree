@@ -77,7 +77,7 @@ object RTreeRDD {
   }
 
   def repartitionRDDorNot[T: ClassTag](rdd: RDD[T], numPartitions: Int): RDD[T] = {
-    if (numPartitions > 0 && numPartitions != rdd.getPartitions.length) {
+    if (numPartitions > 0 && numPartitions != rdd.partitions.length) {
       rdd.repartition(numPartitions)
     } else {
       rdd
@@ -167,7 +167,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
 
   def setPartitionRecs(recs:Array[MBR]) = {
     //recs.zipWithIndex.foreach(println)
-    require(recs.length == getPartitions.length)
+    require(recs.length == partitions.length)
     _partitionRecs = recs
   }
 
@@ -178,7 +178,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
     if(_partitionRecs == null && partitionPruned) {
       //prev.cache()
       _partitionRecs = prev.getPartitionRecs
-      require(_partitionRecs.length == getPartitions.length)
+      require(_partitionRecs.length == partitions.length)
       //_partitionRecs.zipWithIndex.foreach(println)
     }
     _partitionRecs
