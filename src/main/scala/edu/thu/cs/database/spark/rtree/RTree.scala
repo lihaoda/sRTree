@@ -485,4 +485,41 @@ object RTree {
     val root = new RTreeNode(mbr, cur_rtree_nodes)
     new RTree(root)
   }
+
+  def divideMBR(entries: Array[Point], divideNum:Int): Array[MBR] = {
+
+    val dimension = entries(0).coord.length
+    val dim = new Array[Int](dimension)
+    var remaining = divideNum.toDouble
+    for (i <- 0 until dimension) {
+      dim(i) = Math.ceil(Math.pow(remaining, 1.0/(dimension - i))).toInt
+      remaining /= dim(i)
+    }
+
+    def recursiveGroupPointMBR(entries: Array[Point], now_min: Array[Double],
+                               now_max: Array[Double], cur_dim: Int, until_dim: Int): Array[MBR] = {
+      val len = entries.length.toDouble
+      val grouped = entries.sortWith(_.coord(cur_dim) < _.coord(cur_dim))
+        .grouped(Math.ceil(len / dim(cur_dim)).toInt).toArray
+      var ans = mutable.ArrayBuffer[MBR]()
+
+      for (i <- grouped.indices) {
+        if (i == grouped.length - 1) {
+          now_min(cur_dim) = grouped(i).head.coord(cur_dim)
+          now_max(cur_dim) = grouped(i).last.coord(cur_dim)
+        } else {
+          now_min(cur_dim) = grouped(i).head.coord(cur_dim)
+          now_max(cur_dim) = grouped(i + 1).head.coord(cur_dim)
+        }
+        if(cur_dim < until_dim) {
+          ans ++= recursiveGroupPointMBR(grouped(i), now_min, now_max, cur_dim + 1, until_dim)
+        } else {
+          ans += new MBR(new Point(now_min.clone()), new Point(now_max.clone()))
+        }
+      }
+      ans.toArray
+    }
+
+    recursiveGroupPointMBR(entries, new Array[Double](dimension), new Array[Double](dimension), 0, dimension - 1)
+  }
 }
