@@ -81,14 +81,19 @@ class RTreePartitioner(var recs: Array[MBR]) extends Partitioner {
 }
 
 object RTreePartitioner {
+  val useLeaf = true;
   def getRTreeRecs(sampleData:Array[Point], recNum:Int):Array[MBR] = {
-    //HilbertRecBuilder.getRTreeRecs(sampleData, recNum)
-    val entryPernode = (sampleData.length * 1.4 / recNum).toInt
-    RTree(sampleData.map((_, 1)), entryPernode).leafMBR()
+    //
+    if(useLeaf) {
+      val entryPernode = sampleData.length / recNum
+      RTree(sampleData.map((_, 1)), entryPernode).leafMBR()
+    } else {
+      RTree(sampleData.map((_, 1)), 2).divideMBR(recNum)
+    }
   }
   def create(sampleData:Array[Point], numPartitions:Int): RTreePartitioner = {
     val recs = getRTreeRecs(sampleData, numPartitions-1);
-    recs.foreach(println)
+    //recs.foreach(println)
     new RTreePartitioner(recs)
   }
 }
