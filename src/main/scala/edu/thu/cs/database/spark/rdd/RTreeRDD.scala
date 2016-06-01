@@ -57,15 +57,11 @@ object RTreeRDD {
   class RTreeRDDImpl[T: ClassTag](rdd: RDD[(Point, T)], max_entry_per_node:Int = 25) extends RDD[(RTree, Array[(Point, T)])](rdd) {
     override def getPartitions: Array[Partition] = firstParent[(Point, T)].partitions
     override def compute(split: Partition, context: TaskContext): Iterator[(RTree, Array[(Point, T)])] = {
-      val it = firstParent[(Point, T)].iterator(split, context)
-      val b = mutable.ListBuffer[(Point, T)]()
-      while (it.hasNext) {
-        b += it.next
-      }
+      val b = firstParent[(Point, T)].iterator(split, context).toArray
       if(b.nonEmpty) {
         //val geos = array.map(_._1).zipWithIndex
-        val tree = RTree(b.map(_._1).zipWithIndex.toArray, max_entry_per_node)
-        Iterator((tree, b.toArray))
+        val tree = RTree(b.map(_._1).zipWithIndex, max_entry_per_node)
+        Iterator((tree, b))
       } else {
         Iterator()
       }
@@ -95,7 +91,7 @@ object RTreeRDD {
 
     def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[T] = {
       require(numPartitions > 0)
-      rdd.cache()
+      //rdd.cache()
       val samplePos = rdd.map(_._1).takeSample(false, sampleNum)
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions)
       val shuffledRDD = new ShuffledRDD[Point, T, T](rdd, rddPartitioner)
@@ -179,6 +175,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
   def partitionRecs:Array[MBR] = {
     import RTreeRDD._
     if(_partitionRecs == null && partitionPruned) {
+      //prev.cache()
       _partitionRecs = prev.getPartitionRecs
       require(_partitionRecs.length == getNumPartitions)
       //_partitionRecs.zipWithIndex.foreach(println)
@@ -188,7 +185,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
 
   def saveAsRTreeFile(path:String):Unit = {
     val paths = RTreeRDD.getActualSavePath(path)
-    prev.cache()
+    //prev.cache()
     prev
       .map(x => {
         val bos = new ByteArrayOutputStream()
