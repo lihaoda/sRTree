@@ -81,7 +81,7 @@ class RTreePartitioner(var recs: Array[MBR]) extends Partitioner {
 }
 
 object RTreePartitioner {
-  var useLeaf = true
+  var useLeaf = false
   def getRTreeRecs(sampleData:Array[Point], recNum:Int):Array[MBR] = {
     //
     if(useLeaf) {
