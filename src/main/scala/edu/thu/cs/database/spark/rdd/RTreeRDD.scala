@@ -89,10 +89,10 @@ object RTreeRDD {
       new RTreeRDD[T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
 
-    def buildRTreeWithRepartition(numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[T] = {
+    def buildRTreeWithRepartition(numPartitions: Int, sampleRate:Double = 0.0001):RTreeRDD[T] = {
       require(numPartitions > 0)
       //rdd.cache()
-      val samplePos = rdd.map(_._1).takeSample(false, sampleNum)
+      val samplePos = rdd.map(_._1).sample(withReplacement = false, sampleRate).collect()
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions)
       val shuffledRDD = new ShuffledRDD[Point, T, T](rdd, rddPartitioner)
       val rtreeImpl = new RTreeRDDImpl(shuffledRDD)
@@ -161,7 +161,6 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
 
   //prev.cache()
 
-  def getImpl() = prev
 
   @transient
   private var _partitionRecs:Array[MBR] = null
@@ -172,6 +171,8 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
     _partitionRecs = recs
   }
 
+  def impl = prev
+
   def partitionRecs:Array[MBR] = {
     import RTreeRDD._
     if(_partitionRecs == null && partitionPruned) {
@@ -181,6 +182,11 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
       //_partitionRecs.zipWithIndex.foreach(println)
     }
     _partitionRecs
+  }
+
+  override def cache() = {
+    prev.cache()
+    this
   }
 
   def saveAsRTreeFile(path:String):Unit = {
@@ -200,7 +206,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
 
   def search(r:MBR):RDD[(Point, T)] = {
     (if(partitionPruned) {
-      prev.cache()
+      //prev.cache()
       PartitionPruningRDD.create(prev, idx => {
         if(partitionRecs(idx) == null) {
           false
