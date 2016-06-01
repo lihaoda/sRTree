@@ -104,8 +104,8 @@ object RTreeRDD {
     def buildRTree(f: T => Point, numPartitions:Int = -1):RTreeRDD[T] = {
       rdd.map(a => (f(a), a)).buildRTree(numPartitions)
     }
-    def buildRTreeWithRepartition(f: T => Point, numPartitions: Int, sampleNum:Int = 10000):RTreeRDD[T] = {
-      rdd.map(a => (f(a), a)).buildRTreeWithRepartition(numPartitions, sampleNum)
+    def buildRTreeWithRepartition(f: T => Point, numPartitions: Int, sampleRate:Double = 0.0001):RTreeRDD[T] = {
+      rdd.map(a => (f(a), a)).buildRTreeWithRepartition(numPartitions, sampleRate)
     }
   }
 
