@@ -92,7 +92,7 @@ object RTreeRDD {
     def buildRTreeWithRepartition(numPartitions: Int, sampleRate:Double = 0.0001):RTreeRDD[T] = {
       require(numPartitions > 0)
       //rdd.cache()
-      val samplePos = rdd.map(_._1).sample(withReplacement = false, sampleRate).collect()
+      val samplePos = rdd.map(_._1).sample(false, sampleRate).collect()
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions)
       val shuffledRDD = new ShuffledRDD[Point, T, T](rdd, rddPartitioner)
       val rtreeImpl = new RTreeRDDImpl(shuffledRDD)
