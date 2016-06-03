@@ -109,7 +109,7 @@ object RTreeRDD {
           }
           highBound match {
             case Some(high) =>
-              updatePointCoord(high, p, false)
+              updatePointCoord(high, p, true)
             case None =>
               highBound = Some(Point(p.coord.clone()))
           }
@@ -145,11 +145,11 @@ object RTreeRDD {
     //recs.foreach(println)
     println("===============")
     (points.toArray, recs.reduce((a, b) => {
-      println("a before: " + a)
-      println("b before: " + b)
+      //println("a before: " + a)
+      //println("b before: " + b)
       updatePointCoord(a.low, b.low, false)
       updatePointCoord(a.high, b.high, true)
-      println("a after: " + a)
+      //println("a after: " + a)
       a
     }))
   }
