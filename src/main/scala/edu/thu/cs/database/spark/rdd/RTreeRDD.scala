@@ -145,8 +145,8 @@ object RTreeRDD {
     recs.foreach(println)
     println("===============")
     (points.toArray, recs.reduce((a, b) => {
-      //updatePointCoord(a.low, b.low, false)
-      //updatePointCoord(a.high, b.high, true)
+      updatePointCoord(a.low, b.low, false)
+      updatePointCoord(a.high, b.high, true)
       a
     }))
   }
