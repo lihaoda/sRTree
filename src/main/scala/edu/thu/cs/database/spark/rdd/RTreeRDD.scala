@@ -131,6 +131,7 @@ object RTreeRDD {
     val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
       rst match {
         case Some((mbr, points)) =>
+          println(mbr)
           recMBR match {
             case None => recMBR = Some(mbr)
             case Some(m) =>
@@ -146,6 +147,7 @@ object RTreeRDD {
     val pointRDD = rdd.map(_._1)
     SparkContext.getOrCreate().runJob(pointRDD, getPartitionMBRAndSamples, pointRDD.partitions.indices, resultHandler)
     require(recMBR.isDefined)
+    println("===============")
     (recArray.toArray, recMBR.get)
   }
 
