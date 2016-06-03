@@ -60,6 +60,13 @@ final case class Point(coord: Array[Double]) extends Shape {
     case _ => false
   }
 
+  override def equals(other: Any): Boolean = other match {
+    case r: Point =>
+      this == r
+    case _ =>
+      false
+  }
+
   def <=(other: Point): Boolean = {
     for (i <- coord.indices)
       if (coord(i) > other.coord(i)) return false

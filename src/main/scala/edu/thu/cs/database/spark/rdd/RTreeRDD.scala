@@ -10,8 +10,6 @@ import org.apache.hadoop.io.{BytesWritable, NullWritable}
 
 import scala.collection.mutable
 
-import org.apache.spark.util.Utils
-
 //import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 //import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
 //import org.apache.hadoop.io.{BytesWritable, NullWritable}
@@ -22,7 +20,7 @@ import edu.thu.cs.database.spark.spatial._
 import edu.thu.cs.database.spark.partitioner.RTreePartitioner
 import org.apache.spark.rdd.{ShuffledRDD, PartitionPruningRDD, RDD}
 import org.apache.spark._
-
+import org.apache.spark.util.random.BernoulliSampler
 //import scala.collection.JavaConversions.asScalaIterator
 import scala.reflect.ClassTag
 
@@ -59,7 +57,6 @@ object RTreeRDD {
     override def compute(split: Partition, context: TaskContext): Iterator[(RTree, Array[(Point, T)])] = {
       val b = firstParent[(Point, T)].iterator(split, context).toArray
       if(b.nonEmpty) {
-        //val geos = array.map(_._1).zipWithIndex
         val tree = RTree(b.map(_._1).zipWithIndex, max_entry_per_node)
         Iterator((tree, b))
       } else {
@@ -84,19 +81,88 @@ object RTreeRDD {
     }
   }
 
+  def getSamplesWithBound[T: ClassTag](rdd: RDD[(Point, T)], sampleRate: Double): Array[Point] = {
+
+    def updatePointCoord(origin: Point, p: Point, bigger:Boolean): Unit = {
+      for(i <- p.coord.indices) {
+        if(origin.coord(i) > p.coord(i) && !bigger) {
+          origin.coord(i) = p.coord(i)
+        } else if (origin.coord(i) < p.coord(i) && bigger) {
+          origin.coord(i) = p.coord(i)
+        }
+      }
+    }
+
+    val getPartitionMBRAndSamples = (tc:TaskContext, iter:Iterator[Point]) => {
+      val sampler = new BernoulliSampler[Point](sampleRate)
+      sampler.setSeed(new java.util.Random().nextLong())
+      var lowBound: Point = null
+      var highBound: Point = null
+
+      val samples = sampler.sample(new Iterator[Point]() {
+        def updateBound(p:Point): Unit = {
+          if(lowBound == null) {
+            lowBound = p.copy()
+          } else {
+            updatePointCoord(lowBound, p, false)
+          }
+          if(highBound == null) {
+            highBound = p.copy()
+          } else {
+            updatePointCoord(lowBound, p, true)
+          }
+        }
+        override def hasNext: Boolean = iter.hasNext
+        override def next(): Point = {
+          val p = iter.next()
+          updateBound(p)
+          p
+        }
+      }).toArray
+      if(lowBound != null && highBound != null)
+        Some((new MBR(lowBound, highBound), samples))
+      else
+        None
+    }
+    var recMBR: MBR = null
+    val recArray = new mutable.ArrayBuffer[Point]()
+    val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
+      rst match {
+        case Some((mbr, points)) =>
+          if(recMBR == null) {
+            recMBR = mbr
+          } else {
+            updatePointCoord(recMBR.low, mbr.low, false)
+            updatePointCoord(recMBR.high, mbr.high, true)
+          }
+          recArray ++= points
+        case None =>
+      }
+      //return
+    }
+    val pointRDD = rdd.map(_._1)
+    SparkContext.getOrCreate().runJob(pointRDD, getPartitionMBRAndSamples, pointRDD.partitions.indices, resultHandler)
+    recArray += recMBR.low
+    recArray += recMBR.high
+    recArray.toArray
+  }
+
   implicit class RTreeFunctionsForTuple[T: ClassTag](rdd: RDD[(Point, T)]) {
     def buildRTree(numPartitions:Int = -1):RTreeRDD[T] = {
       new RTreeRDD[T](new RTreeRDDImpl(repartitionRDDorNot(rdd,numPartitions)))
     }
 
     def buildRTreeWithRepartition(numPartitions: Int, sampleRate:Double = 0.0001):RTreeRDD[T] = {
-      require(numPartitions > 0)
+      //require(numPartitions > 0)
       //rdd.cache()
+      /*
       val samplePos = rdd.map(_._1).sample(false, sampleRate).collect()
+      */
+      val samplePos = getSamplesWithBound(rdd, sampleRate)
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions)
       val shuffledRDD = new ShuffledRDD[Point, T, T](rdd, rddPartitioner)
       val rtreeImpl = new RTreeRDDImpl(shuffledRDD)
-      new RTreeRDD[T](rtreeImpl)
+      new RTreeRDD[T](rtreeImpl).setPartitionRecs(rddPartitioner.mbrs)
     }
   }
 
@@ -169,6 +235,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
     //recs.zipWithIndex.foreach(println)
     require(recs.length == partitions.length)
     _partitionRecs = recs
+    this
   }
 
   def impl = prev
