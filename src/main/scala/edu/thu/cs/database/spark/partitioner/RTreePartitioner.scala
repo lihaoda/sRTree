@@ -14,13 +14,13 @@ import scala.reflect.ClassTag
 /**
   * Created by lihaoda on 16-4-21.
   */
-class RTreePartitioner(recs: Array[MBR]) extends Partitioner {
+class RTreePartitioner(recs: Array[MBR], maxEntryPerNode:Int) extends Partitioner {
 
   println(s"Partition num: ${recs.length}")
 
   def mbrs = recs
 
-  val tree = RTree(recs.zipWithIndex.map(x => (x._1, x._2, 1)), RTree.default_max_entry_per_node)
+  val tree = RTree(recs.zipWithIndex.map(x => (x._1, x._2, 1)), maxEntryPerNode)
 
   def noNegMod(x:Int, mod:Int):Int = {
     val rawMod = x % mod
@@ -76,10 +76,10 @@ class RTreePartitioner(recs: Array[MBR]) extends Partitioner {
 }
 
 object RTreePartitioner {
-
-  def create(sampleData:Array[Point], approximateNumPartitions:Int, bound:MBR): RTreePartitioner = {
+  val defaultGlobalMaxEntries = 4
+  def create(sampleData:Array[Point], approximateNumPartitions:Int, bound:MBR, globalMaxEntryPerNode:Int = defaultGlobalMaxEntries): RTreePartitioner = {
     val recs = RTree.divideMBR(sampleData, approximateNumPartitions, bound)
-    new RTreePartitioner(recs)
+    new RTreePartitioner(recs, globalMaxEntryPerNode)
   }
 }
 
