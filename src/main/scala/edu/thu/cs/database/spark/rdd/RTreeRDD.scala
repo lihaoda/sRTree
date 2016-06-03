@@ -105,13 +105,13 @@ object RTreeRDD {
             case Some(low) =>
               updatePointCoord(low, p, false)
             case None =>
-              lowBound = Some(p.copy())
+              lowBound = Some(Point(p.coord.clone()))
           }
           highBound match {
             case Some(high) =>
               updatePointCoord(high, p, false)
             case None =>
-              highBound = Some(p.copy())
+              highBound = Some(Point(p.coord.clone()))
           }
         }
         override def hasNext: Boolean = iter.hasNext
