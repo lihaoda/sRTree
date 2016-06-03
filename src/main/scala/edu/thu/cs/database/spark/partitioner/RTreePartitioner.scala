@@ -55,7 +55,7 @@ class RTreePartitioner(recs: Array[MBR], strict:Boolean = false) extends Partiti
 
   override def equals(other: Any): Boolean = other match {
     case r: RTreePartitioner =>
-      recs.zip(r.recs).forall(a => a._1.equals(a._2))
+      mbrs.zip(r.mbrs).forall(a => a._1.equals(a._2))
     case _ =>
       false
   }
