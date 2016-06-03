@@ -139,6 +139,7 @@ object RTreeRDD {
           }
           recArray ++= points
         case None =>
+          println(s"Error! MBR for part ${index} not exist!")
       }
       //return
     }
