@@ -127,14 +127,13 @@ object RTreeRDD {
       else
         None
     }
-    val r: Option[MBR] = None
     val points = new mutable.ArrayBuffer[Point]()
     val recs = new ListBuffer[MBR]()
     val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
       rst match {
-        case Some((mbr, points)) =>
+        case Some((mbr, ps)) =>
           recs += mbr
-          points ++= points
+          points ++= ps
         case None =>
           println(s"Error! MBR for part ${index} not exist!")
       }
