@@ -29,9 +29,15 @@ import scala.reflect.ClassTag
   * Created by lihaoda on 16-3-23.
   */
 
+class SearchedIterator[T: ClassTag](data:Array[T], rstIter: Iterator[(Shape, Int)]) extends Iterator[(Point, T)] {
+  override def hasNext: Boolean = rstIter.hasNext
+  override def next(): (Point, T) = {
+    val rst = rstIter.next()
+    (rst._1.asInstanceOf[Point], data(rst._2))
+  }
+}
+
 object RTreeRDD {
-
-
   def test(): Unit = {
 
     val data = SparkContext.getOrCreate().textFile("/home/spark/test_data/small.txt").map ( s => {
@@ -53,13 +59,13 @@ object RTreeRDD {
     val ed = System.currentTimeMillis
   }
 
-  class RTreeRDDImpl[T: ClassTag](rdd: RDD[(Point, T)], max_entry_per_node:Int = 25) extends RDD[(RTree, Array[(Point, T)])](rdd) {
+  class RTreeRDDImpl[T: ClassTag](rdd: RDD[(Point, T)], max_entry_per_node:Int = 25) extends RDD[(RTree, Array[T])](rdd) {
     override def getPartitions: Array[Partition] = firstParent[(Point, T)].partitions
-    override def compute(split: Partition, context: TaskContext): Iterator[(RTree, Array[(Point, T)])] = {
+    override def compute(split: Partition, context: TaskContext): Iterator[(RTree, Array[T])] = {
       val b = firstParent[(Point, T)].iterator(split, context).toArray
       if(b.nonEmpty) {
         val tree = RTree(b.map(_._1).zipWithIndex, max_entry_per_node)
-        Iterator((tree, b))
+        Iterator((tree, b.map(_._2)))
       } else {
         Iterator()
       }
@@ -189,7 +195,7 @@ object RTreeRDD {
       val rtreeRDD = seqRDD.map(x => {
         val bis = new ByteArrayInputStream(x._2.getBytes)
         val ois = new ObjectInputStream(bis)
-        ois.readObject.asInstanceOf[(RTree, Array[(Point, T)])]
+        ois.readObject.asInstanceOf[(RTree, Array[T])]
       })
       val rdd = new RTreeRDD[T](rtreeRDD, partitionPruned)  //rtreeDataFile[T](paths._1, partitionPruned)
       val global = sc.objectFile[(MBR, Int)](paths._2).collect().sortBy(_._2).map(_._1)
@@ -198,10 +204,10 @@ object RTreeRDD {
     }
   }
 
-  implicit class RTreeFunctionsForRTreeRDD[T: ClassTag](rdd: RDD[(RTree, Array[(Point, T)])]) {
+  implicit class RTreeFunctionsForRTreeRDD[T: ClassTag](rdd: RDD[(RTree, Array[T])]) {
 
     def getPartitionRecs:Array[MBR] = {
-      val getPartitionMbr = (tc:TaskContext, iter:Iterator[(RTree, Array[(Point, T)])]) => {
+      val getPartitionMbr = (tc:TaskContext, iter:Iterator[(RTree, Array[T])]) => {
         if(iter.hasNext) {
           val tree = iter.next()._1
           val mbr = tree.root.m_mbr
@@ -228,7 +234,7 @@ object RTreeRDD {
 
 
 
-private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, T)])], @transient var partitionPruned:Boolean = true)
+private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])], @transient var partitionPruned:Boolean = true)
   extends RDD[(Point, T)](prev) {
 
   //prev.cache()
@@ -290,27 +296,24 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[(Point, 
         }
       })
     } else {
-      firstParent[(RTree, Array[(Point, T)])]
+      firstParent[(RTree, Array[T])]
     }).mapPartitions(iter => {
       if (iter.hasNext) {
-        new Iterator[(Point, T)](){
-          val data = iter.next()
-          val rstIter = data._1.range(r).iterator
-          override def hasNext: Boolean = rstIter.hasNext
-          override def next(): (Point, T) = data._2(rstIter.next()._2)
-        }
+        val (tree, data) = iter.next()
+        new SearchedIterator[T](data, tree.range(r).iterator)
       } else {
         Iterator()
       }
     })
   }
 
-  override def getPartitions: Array[Partition] = firstParent[(RTree, Array[(Point, T)])].partitions
+  override def getPartitions: Array[Partition] = firstParent[(RTree, Array[T])].partitions
 
   override def compute(split: Partition, context: TaskContext): Iterator[(Point, T)] = {
-    val iter = firstParent[(RTree, Array[(Point, T)])].iterator(split, context)
+    val iter = firstParent[(RTree, Array[T])].iterator(split, context)
     if (iter.hasNext) {
-      iter.next()._2.iterator
+      val (tree, data) = iter.next()
+      new SearchedIterator[T](data, tree.range(tree.root.m_mbr).iterator)
     } else {
       Iterator()
     }
