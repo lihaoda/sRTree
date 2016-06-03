@@ -38,6 +38,7 @@ class SearchedIterator[T: ClassTag](data:Array[T], rstIter: Iterator[(Shape, Int
 }
 
 object RTreeRDD {
+
   def test(): Unit = {
 
     val data = SparkContext.getOrCreate().textFile("/home/spark/test_data/small.txt").map ( s => {
@@ -59,7 +60,7 @@ object RTreeRDD {
     val ed = System.currentTimeMillis
   }
 
-  class RTreeRDDImpl[T: ClassTag](rdd: RDD[(Point, T)], max_entry_per_node:Int = 25) extends RDD[(RTree, Array[T])](rdd) {
+  class RTreeRDDImpl[T: ClassTag](rdd: RDD[(Point, T)], max_entry_per_node:Int = RTree.default_max_entry_per_node) extends RDD[(RTree, Array[T])](rdd) {
     override def getPartitions: Array[Partition] = firstParent[(Point, T)].partitions
     override def compute(split: Partition, context: TaskContext): Iterator[(RTree, Array[T])] = {
       val b = firstParent[(Point, T)].iterator(split, context).toArray
@@ -238,7 +239,6 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])], @t
   extends RDD[(Point, T)](prev) {
 
   //prev.cache()
-
 
   @transient
   private var _partitionRecs:Array[MBR] = null

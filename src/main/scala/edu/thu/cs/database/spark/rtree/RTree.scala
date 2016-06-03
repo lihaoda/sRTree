@@ -283,6 +283,10 @@ case class RTree(root: RTreeNode) extends Serializable {
 }
 
 object RTree {
+
+
+  val default_max_entry_per_node = 25
+
   def apply(entries: Array[(Point, Int)], max_entries_per_node: Int): RTree = {
     val dimension = entries(0)._1.coord.length
     val entries_len = entries.length.toDouble
