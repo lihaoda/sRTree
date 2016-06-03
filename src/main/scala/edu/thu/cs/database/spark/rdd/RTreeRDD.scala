@@ -142,11 +142,14 @@ object RTreeRDD {
     }
     val pointRDD = rdd.map(_._1)
     SparkContext.getOrCreate().runJob(pointRDD, getPartitionMBRAndSamples, pointRDD.partitions.indices, resultHandler)
-    recs.foreach(println)
+    //recs.foreach(println)
     println("===============")
     (points.toArray, recs.reduce((a, b) => {
+      println("a before: " + a)
+      println("b before: " + b)
       updatePointCoord(a.low, b.low, false)
       updatePointCoord(a.high, b.high, true)
+      println("a after: " + a)
       a
     }))
   }
