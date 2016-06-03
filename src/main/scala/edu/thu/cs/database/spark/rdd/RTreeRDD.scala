@@ -133,10 +133,6 @@ object RTreeRDD {
     val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
       rst match {
         case Some((mbr, ps)) =>
-          bound match {
-            case None =>
-              bound =
-          }
           recs += mbr
           points ++= ps
         case None =>
