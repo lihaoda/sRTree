@@ -127,11 +127,16 @@ object RTreeRDD {
       else
         None
     }
+    var bound: Option[Point] = None
     val points = new mutable.ArrayBuffer[Point]()
     val recs = new ListBuffer[MBR]()
     val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
       rst match {
         case Some((mbr, ps)) =>
+          bound match {
+            case None =>
+              bound =
+          }
           recs += mbr
           points ++= ps
         case None =>
@@ -144,8 +149,8 @@ object RTreeRDD {
     recs.foreach(println)
     println("===============")
     (points.toArray, recs.reduce((a, b) => {
-      updatePointCoord(a.low, b.low, false)
-      updatePointCoord(a.high, b.high, true)
+      //updatePointCoord(a.low, b.low, false)
+      //updatePointCoord(a.high, b.high, true)
       a
     }))
   }
