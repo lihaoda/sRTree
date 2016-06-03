@@ -97,10 +97,9 @@ object RTreeRDD {
     val getPartitionMBRAndSamples = (tc:TaskContext, iter:Iterator[Point]) => {
       val sampler = new BernoulliSampler[Point](sampleRate)
       sampler.setSeed(new java.util.Random().nextLong())
-      var lowBound: Option[Point] = None
-      var highBound: Option[Point] = None
-
-      val samples = sampler.sample(new Iterator[Point]() {
+      val recordIter = new Iterator[Point]() {
+        var lowBound: Option[Point] = None
+        var highBound: Option[Point] = None
         def updateBound(p:Point): Unit = {
           lowBound match {
             case Some(low) =>
@@ -121,26 +120,21 @@ object RTreeRDD {
           updateBound(p)
           p
         }
-      }).toArray
-      if(lowBound != None && highBound != None)
-        Some((new MBR(lowBound.get, highBound.get), samples))
+      }
+      val samples = sampler.sample(recordIter).toArray
+      if(recordIter.lowBound.isDefined && recordIter.highBound.isDefined)
+        Some((new MBR(recordIter.lowBound.get, recordIter.highBound.get), samples))
       else
         None
     }
-    var recMBR: Option[MBR] = None
-    val recArray = new mutable.ArrayBuffer[Point]()
-    val recDBG = new ListBuffer[MBR]()
+    val r: Option[MBR] = None
+    val points = new mutable.ArrayBuffer[Point]()
+    val recs = new ListBuffer[MBR]()
     val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
       rst match {
         case Some((mbr, points)) =>
-          recDBG += mbr
-          recMBR match {
-            case None => recMBR = Some(mbr.copy())
-            case Some(m) =>
-              updatePointCoord(m.low, mbr.low, false)
-              updatePointCoord(m.high, mbr.high, true)
-          }
-          recArray ++= points
+          recs += mbr
+          points ++= points
         case None =>
           println(s"Error! MBR for part ${index} not exist!")
       }
@@ -148,10 +142,12 @@ object RTreeRDD {
     }
     val pointRDD = rdd.map(_._1)
     SparkContext.getOrCreate().runJob(pointRDD, getPartitionMBRAndSamples, pointRDD.partitions.indices, resultHandler)
-    require(recMBR.isDefined)
-    recDBG.foreach(println)
     println("===============")
-    (recArray.toArray, recMBR.get)
+    (points.toArray, recs.reduce((a, b) => {
+      updatePointCoord(a.low, b.low, false)
+      updatePointCoord(a.high, b.high, true)
+      a
+    }))
   }
 
   implicit class RTreeFunctionsForTuple[T: ClassTag](rdd: RDD[(Point, T)]) {
