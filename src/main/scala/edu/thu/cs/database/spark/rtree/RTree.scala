@@ -487,7 +487,7 @@ object RTree {
   }
 
   def divideMBR(entries: Array[Point], divideNum:Int, bound:MBR): Array[MBR] = {
-
+    println(bound)
     val dimension = entries(0).coord.length
     val dim = new Array[Int](dimension)
     var remaining = divideNum.toDouble
