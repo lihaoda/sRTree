@@ -96,20 +96,22 @@ object RTreeRDD {
     val getPartitionMBRAndSamples = (tc:TaskContext, iter:Iterator[Point]) => {
       val sampler = new BernoulliSampler[Point](sampleRate)
       sampler.setSeed(new java.util.Random().nextLong())
-      var lowBound: Point = null
-      var highBound: Point = null
+      var lowBound: Option[Point] = None
+      var highBound: Option[Point] = None
 
       val samples = sampler.sample(new Iterator[Point]() {
         def updateBound(p:Point): Unit = {
-          if(lowBound == null) {
-            lowBound = p.copy()
-          } else {
-            updatePointCoord(lowBound, p, false)
+          lowBound match {
+            case Some(low) =>
+              updatePointCoord(low, p, false)
+            case None =>
+              lowBound = Some(p.copy())
           }
-          if(highBound == null) {
-            highBound = p.copy()
-          } else {
-            updatePointCoord(lowBound, p, true)
+          highBound match {
+            case Some(high) =>
+              updatePointCoord(high, p, false)
+            case None =>
+              highBound = Some(p.copy())
           }
         }
         override def hasNext: Boolean = iter.hasNext
@@ -119,21 +121,21 @@ object RTreeRDD {
           p
         }
       }).toArray
-      if(lowBound != null && highBound != null)
-        Some((new MBR(lowBound, highBound), samples))
+      if(lowBound != None && highBound != None)
+        Some((new MBR(lowBound.get, highBound.get), samples))
       else
         None
     }
-    var recMBR: MBR = null
+    var recMBR: Option[MBR] = None
     val recArray = new mutable.ArrayBuffer[Point]()
     val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
       rst match {
         case Some((mbr, points)) =>
-          if(recMBR == null) {
-            recMBR = mbr
-          } else {
-            updatePointCoord(recMBR.low, mbr.low, false)
-            updatePointCoord(recMBR.high, mbr.high, true)
+          recMBR match {
+            case None => recMBR = Some(mbr)
+            case Some(m) =>
+              updatePointCoord(m.low, mbr.low, false)
+              updatePointCoord(m.high, mbr.high, true)
           }
           recArray ++= points
         case None =>
@@ -142,8 +144,9 @@ object RTreeRDD {
     }
     val pointRDD = rdd.map(_._1)
     SparkContext.getOrCreate().runJob(pointRDD, getPartitionMBRAndSamples, pointRDD.partitions.indices, resultHandler)
-    recArray += recMBR.low
-    recArray += recMBR.high
+    require(recMBR.isDefined)
+    recArray += recMBR.get.low
+    recArray += recMBR.get.high
     recArray.toArray
   }
 
