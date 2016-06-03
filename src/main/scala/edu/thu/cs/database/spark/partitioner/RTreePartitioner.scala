@@ -93,9 +93,9 @@ class RTreePartitioner(recs: Array[MBR], strict:Boolean = false) extends Partiti
 
 object RTreePartitioner {
 
-  def create(sampleData:Array[Point], approximateNumPartitions:Int): RTreePartitioner = {
-    val recs = RTree.divideMBR(sampleData, approximateNumPartitions)
-    new RTreePartitioner(recs, true)
+  def create(sampleData:Array[Point], approximateNumPartitions:Int, bound:MBR, strict:Boolean = true): RTreePartitioner = {
+    val recs = RTree.divideMBR(sampleData, approximateNumPartitions, bound)
+    new RTreePartitioner(recs, strict)
   }
 }
 
