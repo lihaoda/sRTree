@@ -9,6 +9,7 @@ import edu.thu.cs.database.spark.RTreeInputFormat
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 //import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 //import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
@@ -128,12 +129,13 @@ object RTreeRDD {
     }
     var recMBR: Option[MBR] = None
     val recArray = new mutable.ArrayBuffer[Point]()
+    val recDBG = new ListBuffer[MBR]()
     val resultHandler:(Int, Option[(MBR, Array[Point])]) => Unit = (index, rst) => {
       rst match {
         case Some((mbr, points)) =>
-          println(mbr)
+          recDBG += mbr
           recMBR match {
-            case None => recMBR = Some(mbr)
+            case None => recMBR = Some(mbr.copy())
             case Some(m) =>
               updatePointCoord(m.low, mbr.low, false)
               updatePointCoord(m.high, mbr.high, true)
@@ -147,6 +149,7 @@ object RTreeRDD {
     val pointRDD = rdd.map(_._1)
     SparkContext.getOrCreate().runJob(pointRDD, getPartitionMBRAndSamples, pointRDD.partitions.indices, resultHandler)
     require(recMBR.isDefined)
+    recDBG.foreach(println)
     println("===============")
     (recArray.toArray, recMBR.get)
   }
