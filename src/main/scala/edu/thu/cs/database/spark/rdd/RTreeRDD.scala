@@ -392,7 +392,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       })
     })
 
-    joinRDDWithPartition(rdd, joinParts, (a, b) => {
+    joinRDDWithPartition(rdd, joinParts, (a:(Point, T), b:(RTree, Array[W])) => {
       val point = a._1
       val adata = a._2
       val tree = b._1
@@ -437,7 +437,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       })
     })
 
-    joinRDDWithPartition(rdd, joinParts, (a, b) => {
+    joinRDDWithPartition(rdd, joinParts, (a:(Point, T), b:(RTree, Array[W])) => {
       val point = a._1
       val adata = a._2
       val tree = b._1
