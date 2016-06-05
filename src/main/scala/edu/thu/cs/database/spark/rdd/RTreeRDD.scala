@@ -354,10 +354,17 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       rightTmpMap(t._2) += t
     })
 
+    println("left map size:" + leftTmpMap.size)
+    println("right map size:" + rightTmpMap.size)
+
     val leftImpl = this.impl
     val rightImpl = rdd.impl
     val left = getKeySetedRDD(leftImpl, leftTmpMap.map(a => (a._1, a._2.toList)))
     val right = getKeySetedRDD(rightImpl, rightTmpMap.map(a => (a._1, a._2.toList)))
+
+    println("left size:" + left.count())
+    println("right size:" + right.count())
+
     left.cogroup(right).flatMap(t => {
       val partIds = t._1
       val aData = t._2._1
