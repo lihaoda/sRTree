@@ -225,10 +225,12 @@ case class RTree(root: RTreeNode) extends Serializable {
 
         now._1 match {
           case RTreeNode(_, m_child, isLeaf) =>
-            m_child.foreach(entry =>
-              if (isLeaf) pq.enqueue((entry, entry.minDist(query)))
-              else pq.enqueue((entry.asInstanceOf[RTreeInternalEntry].node, entry.minDist(query)))
-            )
+            m_child.foreach {
+              case entry @ RTreeInternalEntry(mbr, node) =>
+                pq.enqueue((node, query.minDist(mbr)))
+              case entry @ RTreeLeafEntry(shape, m_data, size) =>
+                pq.enqueue((entry, query.minDist(shape)))
+            }
           case RTreeLeafEntry(p, m_data, size) =>
             cnt += size
             kNN_dis = now._2
@@ -259,8 +261,14 @@ case class RTree(root: RTreeNode) extends Serializable {
           case RTreeNode(_, m_child, isLeaf) =>
             m_child.foreach {
               case entry @ RTreeInternalEntry(mbr, node) =>
-                if (isLeaf) pq.enqueue((entry, distFunc(query, mbr)))
-                else pq.enqueue((node, distFunc(query, mbr)))
+                pq.enqueue((node, distFunc(query, mbr)))
+              case entry @ RTreeLeafEntry(shape, m_data, size) =>
+                shape match {
+                  case mbr:MBR =>
+                    pq.enqueue((entry, distFunc(query, mbr)))
+                  case s:_ =>
+                    pq.enqueue((entry, s.minDist(query)))
+                }
             }
           case RTreeLeafEntry(mbr, m_data, size) =>
             cnt += size
@@ -292,13 +300,19 @@ case class RTree(root: RTreeNode) extends Serializable {
           case RTreeNode(_, m_child, isLeaf) =>
             m_child.foreach {
               case entry @ RTreeInternalEntry(mbr, node) =>
-                if (isLeaf) pq.enqueue((entry, distFunc(query, mbr)))
-                else pq.enqueue((node, distFunc(query, mbr)))
+                pq.enqueue((node, distFunc(query, mbr)))
+              case entry @ RTreeLeafEntry(shape, m_data, size) =>
+                shape match {
+                  case mbr:MBR =>
+                    pq.enqueue((entry, distFunc(query, mbr)))
+                  case s:_ =>
+                    pq.enqueue((entry, s.minDist(query)))
+                }
             }
-          case RTreeLeafEntry(mbr, m_data, size) =>
+          case RTreeLeafEntry(shape, m_data, size) =>
             cnt += size
             kNN_dis = now._2
-            ans += ((mbr, m_data))
+            ans += ((shape, m_data))
         }
       }
     }
