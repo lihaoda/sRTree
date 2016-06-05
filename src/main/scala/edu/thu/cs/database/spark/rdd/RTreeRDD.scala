@@ -279,7 +279,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
   private def joinRDDWithPartition[W: ClassTag, U: ClassTag](rdd:RTreeRDD[W],
                                                 joinedParts:TraversableOnce[(Int, Int)],
                                                 func:((Point, T), (RTree, Array[W])) => TraversableOnce[U])
-  :RDD[((Point, T),TraversableOnce[U])] = {
+  :RDD[((Point, T),List[U])] = {
     val leftTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
     val rightTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
 
@@ -312,7 +312,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       val aData = t._2._1
       val bData = t._2._2
       if(aData.nonEmpty && bData.nonEmpty) {
-        val rst = new ListBuffer[((Point, T),TraversableOnce[U])]()
+        val rst = new ListBuffer[((Point, T),List[U])]()
         aData.foreach( a => {
           val apois = a._1.all
           val adata = a._2
@@ -320,7 +320,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
             apois.foreach(t => {
               val ap = t._1.asInstanceOf[Point]
               val aindex = t._2
-              rst += Tuple2((ap, adata(aindex)), func((ap, adata(aindex)), b))
+              rst += Tuple2((ap, adata(aindex)), func((ap, adata(aindex)), b).toList)
             })
           })
         })
@@ -417,7 +417,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     //println("========= end dist join =========")
     rst.flatMap(t => {
       val at = t._1
-      t._2.map[((Point, T), (Point, W))](b => (at, b))
+      t._2.map((at, _))
     })
   }
 
@@ -463,7 +463,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       tree.kNN(point, k).map(t => {
         (point.minDist(t._1), (t._1.asInstanceOf[Point], bdatas(t._2)))
       })
-    })
+    }).reduceByKey(_ ++ _)
       .flatMap[((Point, T), (Point, W))](l => {
         l._2
           .toList
