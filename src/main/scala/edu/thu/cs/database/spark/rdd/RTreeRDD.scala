@@ -365,7 +365,9 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     println("left size:" + left.count())
     println("right size:" + right.count())
 
-    left.cogroup(right).flatMap(t => {
+    val cogrouped = left.cogroup(right)
+    println("co size:" + cogrouped.count())
+    cogrouped.flatMap(t => {
       val partIds = t._1
       val aData = t._2._1
       val bData = t._2._2
