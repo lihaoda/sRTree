@@ -408,9 +408,10 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       val adata = a._2
       val tree = b._1
       val bdatas = b._2
-      tree.circleRange(point, dist).map(t => {
+      val rst = tree.circleRange(point, dist).map(t => {
         (t._1.asInstanceOf[Point], bdatas(t._2))
       })
+      rst
     })
 
     //println("========= end dist join =========")
@@ -460,7 +461,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       val tree = b._1
       val bdatas = b._2
       tree.kNN(point, k).map(t => {
-        (t._1.minDist(point), (t._1.asInstanceOf[Point], bdatas(t._2)))
+        (point.minDist(t._1), (t._1.asInstanceOf[Point], bdatas(t._2)))
       })
     }).reduceByKey(_.toList ++ _)
       .flatMap[((Point, T), (Point, W))](l => {
