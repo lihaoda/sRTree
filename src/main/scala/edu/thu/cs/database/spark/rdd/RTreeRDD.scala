@@ -452,7 +452,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     require(p.coord.length == globalRTree.dim)
     val ord = new PointDisOrdering[T](p)
 
-    val recs = globalRTree.kNN(p, maxDist, k)
+    val recs = globalRTree.kNN(p, maxDist, k, false)
     val tmpSet = new mutable.HashSet[Int]()
     tmpSet ++= recs.map(_._2)
 
