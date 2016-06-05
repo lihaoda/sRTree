@@ -8,7 +8,6 @@ import java.io._
 import edu.thu.cs.database.spark.RTreeInputFormat
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 
-import scala.TraversableOnce
 import scala.collection.{TraversableOnce, mutable}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 

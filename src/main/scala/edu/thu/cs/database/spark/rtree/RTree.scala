@@ -212,7 +212,7 @@ case class RTree(root: RTreeNode) extends Serializable {
   def kNN(query: Point, k: Int, keepSame: Boolean = false): Array[(Shape, Int)] = {
     val ans = mutable.ArrayBuffer[(Shape, Int)]()
     val pq = new mutable.PriorityQueue[(_, Double)]()(new NNOrdering())
-    var cnt = 0
+    var cnt = 0L
     var kNN_dis = 0.0
     pq.enqueue((root, 0.0))
 
@@ -244,7 +244,7 @@ case class RTree(root: RTreeNode) extends Serializable {
           k: Int, keepSame: Boolean = false): Array[(Shape, Int)] = {
     val ans = mutable.ArrayBuffer[(Shape, Int)]()
     val pq = new mutable.PriorityQueue[(_, Double)]()(new NNOrdering())
-    var cnt = 0
+    var cnt = 0L
     var kNN_dis = 0.0
     pq.enqueue((root, 0.0))
 
