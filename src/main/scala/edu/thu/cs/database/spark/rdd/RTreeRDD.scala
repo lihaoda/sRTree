@@ -276,6 +276,60 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     this
   }
 
+  private def joinRDDWithPartition[W: ClassTag, U: ClassTag](rdd:RTreeRDD[W],
+                                                joinedParts:TraversableOnce[(Int, Int)],
+                                                func:((Point, T), (RTree, Array[W])) => TraversableOnce[U])
+  :RDD[((Point, T),TraversableOnce[U])] = {
+    val leftTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
+    val rightTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
+
+    joinedParts.foreach(t => {
+      if(!leftTmpMap.contains(t._1)) {
+        leftTmpMap += Tuple2(t._1, new  mutable.ArrayBuffer[(Int, Int)]())
+      }
+      if(!rightTmpMap.contains(t._2)) {
+        rightTmpMap += Tuple2(t._2, new  mutable.ArrayBuffer[(Int, Int)]())
+      }
+      leftTmpMap(t._1) += t
+      rightTmpMap(t._2) += t
+    })
+
+    //println("left map size:" + leftTmpMap.size)
+    //println("right map size:" + rightTmpMap.size)
+
+    val leftImpl = this.impl
+    val rightImpl = rdd.impl
+    val left = getKeySetedRDD(leftImpl, leftTmpMap.map(a => (a._1, a._2.toList)))
+    val right = getKeySetedRDD(rightImpl, rightTmpMap.map(a => (a._1, a._2.toList)))
+
+    //println("left size:" + left.count())
+    //println("right size:" + right.count())
+
+    val cogrouped = left.cogroup(right)
+    //println("co size:" + cogrouped.count())
+    cogrouped.flatMap(t => {
+      val partIds = t._1
+      val aData = t._2._1
+      val bData = t._2._2
+      if(aData.nonEmpty && bData.nonEmpty) {
+        val rst = new ArrayBuffer[((Point, T),TraversableOnce[U])]()
+        aData.foreach( a => {
+          val apois = a._1.all
+          val adata = a._2
+          bData.foreach( b => {
+            apois.foreach(t => {
+              val ap = t._1.asInstanceOf[Point]
+              val aindex = t._2
+              rst += Tuple2((ap, adata(aindex)), func((ap, adata(aindex)), b))
+            })
+          })
+        })
+        rst
+      } else {
+        Iterator()
+      }
+    })
+  }
 
   private def getKeySetedRDD[U:ClassTag]
   (rdd: RDD[(RTree, Array[U])], m: mutable.Map[Int, collection.immutable.List[(Int, Int)]]) = {
@@ -336,64 +390,9 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     })
   }
 
-  private def joinRDDWithPartition[W: ClassTag](rdd:RTreeRDD[W],
-                                                joinedParts:TraversableOnce[(Int, Int)],
-                                               func:((Point, T), (RTree, Array[W])) => TraversableOnce[((Point, T),(Point, W))])
-  :RDD[((Point, T),(Point, W))] = {
-    val leftTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
-    val rightTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
-
-    joinedParts.foreach(t => {
-      if(!leftTmpMap.contains(t._1)) {
-        leftTmpMap += Tuple2(t._1, new  mutable.ArrayBuffer[(Int, Int)]())
-      }
-      if(!rightTmpMap.contains(t._2)) {
-        rightTmpMap += Tuple2(t._2, new  mutable.ArrayBuffer[(Int, Int)]())
-      }
-      leftTmpMap(t._1) += t
-      rightTmpMap(t._2) += t
-    })
-
-    println("left map size:" + leftTmpMap.size)
-    println("right map size:" + rightTmpMap.size)
-
-    val leftImpl = this.impl
-    val rightImpl = rdd.impl
-    val left = getKeySetedRDD(leftImpl, leftTmpMap.map(a => (a._1, a._2.toList)))
-    val right = getKeySetedRDD(rightImpl, rightTmpMap.map(a => (a._1, a._2.toList)))
-
-    println("left size:" + left.count())
-    println("right size:" + right.count())
-
-    val cogrouped = left.cogroup(right)
-    println("co size:" + cogrouped.count())
-    cogrouped.flatMap(t => {
-      val partIds = t._1
-      val aData = t._2._1
-      val bData = t._2._2
-      if(aData.nonEmpty && bData.nonEmpty) {
-        val rst = new ArrayBuffer[((Point, T),(Point, W))]()
-        aData.foreach( a => {
-          val apois = a._1.all
-          val adata = a._2
-          bData.foreach( b => {
-            apois.foreach(t => {
-              val ap = t._1.asInstanceOf[Point]
-              val aindex = t._2
-              rst ++= func((ap, adata(aindex)), b)
-            })
-          })
-        })
-        rst
-      } else {
-        Iterator()
-      }
-    })
-  }
-
   def distJoin[W: ClassTag](rdd:RTreeRDD[W], dist:Double):RDD[((Point, T),(Point, W))] = {
 
-    println("========= start dist join =========")
+    //println("========= start dist join =========")
     val joinParts = new mutable.ArrayBuffer[(Int, Int)]()
     globalRTree.all.foreach(a => {
       val mbr = a._1.asInstanceOf[MBR]
@@ -402,7 +401,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       })
     })
     joinParts.foreach(println)
-    println("===========================")
+    //println("===========================")
 
     val rst = joinRDDWithPartition(rdd, joinParts, (a:(Point, T), b:(RTree, Array[W])) => {
       val point = a._1
@@ -410,12 +409,15 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       val tree = b._1
       val bdatas = b._2
       tree.circleRange(point, dist).map(t => {
-        ((point, adata), (t._1.asInstanceOf[Point], bdatas(t._2)))
+        (t._1.asInstanceOf[Point], bdatas(t._2))
       })
     })
 
-    println("========= end dist join =========")
-    rst
+    //println("========= end dist join =========")
+    rst.flatMap(t => {
+      val at = t._1
+      t._2.map[((Point, T), (Point, W))](b => (at, b))
+    })
   }
 
 
@@ -428,7 +430,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     Math.sqrt(ans)
   }
 
-  def knnJoin[W: ClassTag](rdd:RTreeRDD[W], k:Int) = {
+  def knnJoin[W: ClassTag](rdd:RTreeRDD[W], k:Int):RDD[((Point, T),(Point, W))] = {
 
     def centerPoint(mbr:MBR):Point = {
       val rst = new Array[Double](mbr.low.coord.length)
@@ -445,7 +447,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     val joinParts = new mutable.ArrayBuffer[(Int, Int)]()
     globalRTree.all.foreach(a => {
       val center = centerPoint(a._1.asInstanceOf[MBR])
-      val knnDis = takeKNN(center, k).last._1.minDist(center)
+      val knnDis = rdd.takeKNN(center, k).last._1.minDist(center)
       val dis = getLooseDistByKNN(knnDis, a._1.asInstanceOf[MBR], center)
       rdd.globalRTree.circleRange(center, dis).foreach(b => {
         joinParts += Tuple2(a._2, b._2)
@@ -458,9 +460,18 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       val tree = b._1
       val bdatas = b._2
       tree.kNN(point, k).map(t => {
-        ((point, adata), (t._1.asInstanceOf[Point], bdatas(t._2)))
+        (t._1.minDist(point), (t._1.asInstanceOf[Point], bdatas(t._2)))
       })
-    })
+    }).reduceByKey(_.toList ++ _)
+      .flatMap[((Point, T), (Point, W))](l => {
+        l._2
+          .toList
+          .sortWith((a,b) => {
+            a._1 < b._1
+          }).take(k).map(t => {
+          (l._1, t._2)
+        })
+      })
   }
 
   def takeKNN(p:Point, k:Int): Array[(Point, T)] = {
