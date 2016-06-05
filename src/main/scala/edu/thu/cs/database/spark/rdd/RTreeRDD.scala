@@ -380,7 +380,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
             apois.foreach(t => {
               val ap = t._1.asInstanceOf[Point]
               val aindex = t._2
-              func((ap, adata(aindex)), b)
+              rst ++= func((ap, adata(aindex)), b)
             })
           })
         })
