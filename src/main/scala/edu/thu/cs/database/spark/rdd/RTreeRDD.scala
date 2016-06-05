@@ -312,7 +312,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       val aData = t._2._1
       val bData = t._2._2
       if(aData.nonEmpty && bData.nonEmpty) {
-        val rst = new ArrayBuffer[((Point, T),TraversableOnce[U])]()
+        val rst = new ListBuffer[((Point, T),TraversableOnce[U])]()
         aData.foreach( a => {
           val apois = a._1.all
           val adata = a._2
@@ -324,7 +324,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
             })
           })
         })
-        rst.toArray
+        rst.toList
       } else {
         Iterator()
       }
