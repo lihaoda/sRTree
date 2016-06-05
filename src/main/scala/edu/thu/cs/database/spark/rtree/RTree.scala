@@ -266,7 +266,7 @@ case class RTree(root: RTreeNode) extends Serializable {
                 shape match {
                   case mbr:MBR =>
                     pq.enqueue((entry, distFunc(query, mbr)))
-                  case s:_ =>
+                  case s:Point =>
                     pq.enqueue((entry, s.minDist(query)))
                 }
             }
@@ -305,7 +305,7 @@ case class RTree(root: RTreeNode) extends Serializable {
                 shape match {
                   case mbr:MBR =>
                     pq.enqueue((entry, distFunc(query, mbr)))
-                  case s:_ =>
+                  case s:Point =>
                     pq.enqueue((entry, s.minDist(query)))
                 }
             }
