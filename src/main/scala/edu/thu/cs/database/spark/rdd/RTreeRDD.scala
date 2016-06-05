@@ -384,6 +384,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
 
   def distJoin[W: ClassTag](rdd:RTreeRDD[W], dist:Double):RDD[((Point, T),(Point, W))] = {
 
+    println("========= start dist join =========")
     val joinParts = new mutable.ArrayBuffer[(Int, Int)]()
     globalRTree.all.foreach(a => {
       val mbr = a._1.asInstanceOf[MBR]
@@ -391,8 +392,10 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
         joinParts += Tuple2(a._2, b._2)
       })
     })
+    joinParts.foreach(println)
+    println("===========================")
 
-    joinRDDWithPartition(rdd, joinParts, (a:(Point, T), b:(RTree, Array[W])) => {
+    val rst = joinRDDWithPartition(rdd, joinParts, (a:(Point, T), b:(RTree, Array[W])) => {
       val point = a._1
       val adata = a._2
       val tree = b._1
@@ -401,6 +404,9 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
         ((point, adata), (t._1.asInstanceOf[Point], bdatas(t._2)))
       })
     })
+
+    println("========= end dist join =========")
+    rst
   }
 
 
