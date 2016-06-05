@@ -20,7 +20,7 @@ class RTreePartitioner(recs: Array[MBR], maxEntryPerNode:Int) extends Partitione
 
   def mbrs = recs
 
-  val tree = RTree(recs.zipWithIndex.map(x => (x._1, x._2, 1)), maxEntryPerNode)
+  val tree = RTree(recs.zipWithIndex.map(x => (x._1, x._2, 1L)), maxEntryPerNode)
 
   def noNegMod(x:Int, mod:Int):Int = {
     val rawMod = x % mod

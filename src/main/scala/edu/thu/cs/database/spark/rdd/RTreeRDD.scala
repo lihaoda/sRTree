@@ -8,8 +8,9 @@ import java.io._
 import edu.thu.cs.database.spark.RTreeInputFormat
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.TraversableOnce
+import scala.collection.{TraversableOnce, mutable}
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 //import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
 //import com.github.davidmoten.rtree.{InternalStructure, Entry, RTree, Entries}
@@ -34,6 +35,13 @@ class SearchedIterator[T: ClassTag](data:Array[T], rstIter: Iterator[(Shape, Int
   override def next(): (Point, T) = {
     val rst = rstIter.next()
     (rst._1.asInstanceOf[Point], data(rst._2))
+  }
+}
+
+
+class PointDisOrdering[T: ClassTag](origin: Point) extends Ordering[(Point, T)] {
+  def compare(a: (Point, T), b: (Point, T)) = {
+    origin.minDist(a._1).compare(origin.minDist(b._1))
   }
 }
 
@@ -175,7 +183,7 @@ object RTreeRDD {
       val rddPartitioner = RTreePartitioner.create(samplePos, numPartitions, bound)
       val shuffledRDD = new ShuffledRDD[Point, T, T](rdd, rddPartitioner)
       val rtreeImpl = new RTreeRDDImpl(shuffledRDD)
-      new RTreeRDD[T](rtreeImpl).setPartitionRecs(rddPartitioner.mbrs)
+      new RTreeRDD[T](rtreeImpl)
     }
   }
 
@@ -189,7 +197,7 @@ object RTreeRDD {
   }
 
   implicit class RTreeFunctionsForSparkContext(sc: SparkContext) {
-    def rtreeFile[T : ClassTag](path:String, partitionPruned:Boolean = true): RTreeRDD[T] = {
+    def rtreeFile[T : ClassTag](path:String): RTreeRDD[T] = {
       val paths = getActualSavePath(path)
       val inputFormatClass = classOf[RTreeInputFormat[NullWritable, BytesWritable]]
       val seqRDD = sc.hadoopFile(paths._1, inputFormatClass, classOf[NullWritable], classOf[BytesWritable])
@@ -198,31 +206,31 @@ object RTreeRDD {
         val ois = new ObjectInputStream(bis)
         ois.readObject.asInstanceOf[(RTree, Array[T])]
       })
-      val rdd = new RTreeRDD[T](rtreeRDD, partitionPruned)  //rtreeDataFile[T](paths._1, partitionPruned)
-      val global = sc.objectFile[(MBR, Int)](paths._2).collect().sortBy(_._2).map(_._1)
-      rdd.setPartitionRecs(global)
+      val rdd = new RTreeRDD[T](rtreeRDD)  //rtreeDataFile[T](paths._1, partitionPruned)
+      val global = sc.objectFile[RTree](paths._2).collect().head
+      rdd.setGlobalRTree(global)
       rdd
     }
   }
 
   implicit class RTreeFunctionsForRTreeRDD[T: ClassTag](rdd: RDD[(RTree, Array[T])]) {
 
-    def getPartitionRecs:Array[MBR] = {
+    def getPartitionRecs:Array[(MBR, Int, Long)] = {
       val getPartitionMbr = (tc:TaskContext, iter:Iterator[(RTree, Array[T])]) => {
         if(iter.hasNext) {
           val tree = iter.next()._1
           val mbr = tree.root.m_mbr
-          Some((tc.partitionId(), mbr))
+          Some((mbr, tc.partitionId(), tree.root.size))
         } else {
           None
         }
       }
-      val recArray = new Array[MBR](rdd.partitions.length)
-      val resultHandler = (index: Int, rst:Option[(Int, MBR)]) => {
+      val recArray = new Array[(MBR, Int, Long)](rdd.partitions.length)
+      val resultHandler = (index: Int, rst:Option[(MBR, Int, Long)]) => {
         rst match {
-          case Some((idx, rec)) =>
+          case Some((rec, idx, len)) =>
             require(idx == index)
-            recArray(index) = rec
+            recArray(index) = (rec, idx, len)
           case None =>
         }
       }
@@ -235,37 +243,52 @@ object RTreeRDD {
 
 
 
-private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])], @transient var partitionPruned:Boolean = true)
+private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
   extends RDD[(Point, T)](prev) {
 
   //prev.cache()
 
   @transient
-  private var _partitionRecs:Array[MBR] = null
+  //private var _partitionRecs:Array[(MBR, Int, Long)] = null
+  private var _globalRTree: RTree = null
 
-  def setPartitionRecs(recs:Array[MBR]) = {
+  def setGlobalRTree(tree:RTree) = {
     //recs.zipWithIndex.foreach(println)
-    require(recs.length == partitions.length)
-    _partitionRecs = recs
+    _globalRTree = tree
     this
   }
 
   def impl = prev
 
-  def partitionRecs:Array[MBR] = {
+  def globalRTree:RTree = {
     import RTreeRDD._
-    if(_partitionRecs == null && partitionPruned) {
+    if(_globalRTree == null) {
       //prev.cache()
-      _partitionRecs = prev.getPartitionRecs
-      require(_partitionRecs.length == partitions.length)
+      val recs = prev.getPartitionRecs
+      require(recs.length == partitions.length)
+      _globalRTree = RTree(recs, RTree.default_max_entry_per_node)
       //_partitionRecs.zipWithIndex.foreach(println)
     }
-    _partitionRecs
+    _globalRTree
   }
 
   override def cache() = {
     prev.cache()
     this
+  }
+
+
+  private def getKeySetedRDD[U:ClassTag]
+  (rdd: RDD[(RTree, Array[U])], m: mutable.Map[Int, collection.immutable.List[(Int, Int)]]) = {
+    rdd.mapPartitionsWithIndex((idx, iter) => {
+      iter.flatMap(p => {
+        if(m.contains(idx)) {
+          m(idx).map(a => (a, p))
+        } else {
+          List()
+        }
+      })
+    })
   }
 
   def saveAsRTreeFile(path:String):Unit = {
@@ -280,24 +303,16 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])], @t
         (NullWritable.get(), new BytesWritable(bos.toByteArray))
       })
       .saveAsSequenceFile(paths._1)
-    sparkContext.parallelize(partitionRecs.zipWithIndex).saveAsObjectFile(paths._2)
+    sparkContext.parallelize(Array(globalRTree)).saveAsObjectFile(paths._2)
   }
 
   def search(r:MBR):RDD[(Point, T)] = {
-    (if(partitionPruned) {
-      //prev.cache()
-      PartitionPruningRDD.create(prev, idx => {
-        if(partitionRecs(idx) == null) {
-          false
-        } else {
-          val rst = partitionRecs(idx).intersects(r)
-          //println(idx, rst)
-          rst
-        }
-      })
-    } else {
-      firstParent[(RTree, Array[T])]
-    }).mapPartitions(iter => {
+    require(r.low.coord.length == globalRTree.dim)
+
+    val rst = globalRTree.range(r)
+    val tmpSet = new mutable.HashSet[Int]()
+    tmpSet ++= rst.map(_._2)
+    PartitionPruningRDD.create(prev, tmpSet.contains).mapPartitions(iter => {
       if (iter.hasNext) {
         val (tree, data) = iter.next()
         new SearchedIterator[T](data, tree.range(r).iterator)
@@ -305,6 +320,170 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])], @t
         Iterator()
       }
     })
+  }
+
+  def search(p:Point, r:Double): RDD[(Point, T)] = {
+    require(p.coord.length == globalRTree.dim)
+    val rst = globalRTree.circleRange(p, r)
+    val tmpSet = new mutable.HashSet[Int]()
+    tmpSet ++= rst.map(_._2)
+    PartitionPruningRDD.create(prev, tmpSet.contains).mapPartitions(iter => {
+      if (iter.hasNext) {
+        val (tree, data) = iter.next()
+        new SearchedIterator[T](data, tree.circleRange(p, r).iterator)
+      } else {
+        Iterator()
+      }
+    })
+  }
+
+  private def joinRDDWithPartition[W: ClassTag](rdd:RTreeRDD[W],
+                                                joinedParts:TraversableOnce[(Int, Int)],
+                                               func:((Point, T), (RTree, Array[W])) => TraversableOnce[((Point, T),(Point, W))])
+  :RDD[((Point, T),(Point, W))] = {
+    val leftTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
+    val rightTmpMap = new mutable.HashMap[Int, mutable.ArrayBuffer[(Int, Int)]]()
+
+    joinedParts.foreach(t => {
+      if(!leftTmpMap.contains(t._1)) {
+        leftTmpMap += Tuple2(t._1, new  mutable.ArrayBuffer[(Int, Int)]())
+      }
+      if(!rightTmpMap.contains(t._2)) {
+        rightTmpMap += Tuple2(t._2, new  mutable.ArrayBuffer[(Int, Int)]())
+      }
+      leftTmpMap(t._1) += t
+      rightTmpMap(t._2) += t
+    })
+
+    val leftImpl = this.impl
+    val rightImpl = rdd.impl
+    val left = getKeySetedRDD(leftImpl, leftTmpMap.map(a => (a._1, a._2.toList)))
+    val right = getKeySetedRDD(rightImpl, rightTmpMap.map(a => (a._1, a._2.toList)))
+    left.cogroup(right).flatMap(t => {
+      val partIds = t._1
+      val aData = t._2._1
+      val bData = t._2._2
+      if(aData.nonEmpty && bData.nonEmpty) {
+        val rst = new ArrayBuffer[((Point, T),(Point, W))]()
+        aData.foreach( a => {
+          val apois = a._1.all
+          val adata = a._2
+          bData.foreach( b => {
+            apois.foreach(t => {
+              val ap = t._1.asInstanceOf[Point]
+              val aindex = t._2
+              func((ap, adata(aindex)), b)
+            })
+          })
+        })
+        rst
+      } else {
+        Iterator()
+      }
+    })
+  }
+
+  def distJoin[W: ClassTag](rdd:RTreeRDD[W], dist:Double):RDD[((Point, T),(Point, W))] = {
+
+    val joinParts = new mutable.ArrayBuffer[(Int, Int)]()
+    globalRTree.all.foreach(a => {
+      val mbr = a._1.asInstanceOf[MBR]
+      rdd.globalRTree.circleRange(mbr, dist).foreach(b => {
+        joinParts += Tuple2(a._2, b._2)
+      })
+    })
+
+    joinRDDWithPartition(rdd, joinParts, (a, b) => {
+      val point = a._1
+      val adata = a._2
+      val tree = b._1
+      val bdatas = b._2
+      tree.circleRange(point, dist).map(t => {
+        ((point, adata), (t._1.asInstanceOf[Point], bdatas(t._2)))
+      })
+    })
+  }
+
+
+  def maxDist = (a: Point, b: MBR) => {
+    var ans = 0.0
+    for (i <- a.coord.indices) {
+      ans += Math.max((a.coord(i) - b.low.coord(i)) * (a.coord(i) - b.low.coord(i)),
+        (a.coord(i) - b.high.coord(i)) * (a.coord(i) - b.high.coord(i)))
+    }
+    Math.sqrt(ans)
+  }
+
+  def knnJoin[W: ClassTag](rdd:RTreeRDD[W], k:Int) = {
+
+    def centerPoint(mbr:MBR):Point = {
+      val rst = new Array[Double](mbr.low.coord.length)
+      for(i <- mbr.low.coord.indices) {
+        rst(i) = (mbr.low.coord(i) + mbr.high.coord(i))/2
+      }
+      Point(rst)
+    }
+
+    def getLooseDistByKNN(knnDist:Double, mbr:MBR, center:Point): Double = {
+      maxDist(center, mbr) * 2 + knnDist
+    }
+
+    val joinParts = new mutable.ArrayBuffer[(Int, Int)]()
+    globalRTree.all.foreach(a => {
+      val center = centerPoint(a._1.asInstanceOf[MBR])
+      val knnDis = takeKNN(center, k).last._1.minDist(center)
+      val dis = getLooseDistByKNN(knnDis, a._1.asInstanceOf[MBR], center)
+      rdd.globalRTree.circleRange(center, dis).foreach(b => {
+        joinParts += Tuple2(a._2, b._2)
+      })
+    })
+
+    joinRDDWithPartition(rdd, joinParts, (a, b) => {
+      val point = a._1
+      val adata = a._2
+      val tree = b._1
+      val bdatas = b._2
+      tree.kNN(point, k).map(t => {
+        ((point, adata), (t._1.asInstanceOf[Point], bdatas(t._2)))
+      })
+    })
+  }
+
+  def takeKNN(p:Point, k:Int): Array[(Point, T)] = {
+    require(p.coord.length == globalRTree.dim)
+    val ord = new PointDisOrdering[T](p)
+
+    val recs = globalRTree.kNN(p, maxDist, k)
+    val tmpSet = new mutable.HashSet[Int]()
+    tmpSet ++= recs.map(_._2)
+
+    val tmpRst = PartitionPruningRDD.create(prev, tmpSet.contains).mapPartitions(iter => {
+      if (iter.hasNext) {
+        val (tree, data) = iter.next()
+        new SearchedIterator[T](data, tree.kNN(p, k).iterator)
+      } else {
+        Iterator()
+      }
+    }).takeOrdered(k)(ord)
+    val range = p.minDist(tmpRst.last._1)
+    val otherRecs = globalRTree.circleRange(p, range).iterator.map(_._2).filter(!tmpSet.contains(_))
+    if(otherRecs.nonEmpty) {
+      val tmpSet2 = new mutable.HashSet[Int]()
+      tmpSet2 ++= otherRecs
+      val rst = PartitionPruningRDD.create(prev, tmpSet2.contains).mapPartitions(iter => {
+        if (iter.hasNext) {
+          val (tree, data) = iter.next()
+          new SearchedIterator[T](data, tree.kNN(p, k).iterator)
+        } else {
+          Iterator()
+        }
+      }).takeOrdered(k)(ord)
+      (rst ++ tmpRst).sortWith((a,b) => {
+        p.minDist(a._1) < p.minDist(b._1)
+      }).take(k)
+    } else {
+      tmpRst
+    }
   }
 
   override def getPartitions: Array[Partition] = firstParent[(RTree, Array[T])].partitions
