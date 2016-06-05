@@ -324,7 +324,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
             })
           })
         })
-        rst
+        rst.toArray
       } else {
         Iterator()
       }
