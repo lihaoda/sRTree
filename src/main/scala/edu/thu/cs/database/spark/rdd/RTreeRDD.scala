@@ -324,7 +324,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
             })
           })
         })
-        rst.toList
+        rst
       } else {
         Iterator()
       }
@@ -463,7 +463,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       tree.kNN(point, k).map(t => {
         (point.minDist(t._1), (t._1.asInstanceOf[Point], bdatas(t._2)))
       })
-    }).reduceByKey(_.toList ++ _)
+    })
       .flatMap[((Point, T), (Point, W))](l => {
         l._2
           .toList
