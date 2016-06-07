@@ -400,7 +400,6 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
         joinParts += Tuple2(a._2, b._2)
       })
     })
-    joinParts.foreach(println)
     //println("===========================")
 
     val rst = joinRDDWithPartition(rdd, joinParts, (a:(Point, T), b:(RTree, Array[W])) => {
