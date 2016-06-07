@@ -21,7 +21,11 @@ package edu.thu.cs.database.spark.spatial
  * Multi-Dimensional Point
  */
 final case class Point(coord: Array[Double]) extends Shape {
-  def this() = this(Array())
+  def this() = this(new Array[Double](0))
+
+  def this(x:Double) = this(Array(x))
+  def this(x:Double, y:Double) = this(Array(x, y))
+  def this(x:Double, y:Double, z:Double) = this(Array(x, y, z))
 
   override def intersects(other: Shape): Boolean = {
     other match {
@@ -80,5 +84,14 @@ final case class Point(coord: Array[Double]) extends Shape {
     s += coord(0).toString
     for (i <- 1 until coord.length) s += "," + coord(i)
     s + ")"
+  }
+
+  override def hashCode: Int = {
+    val prime = 97
+    var result = 1
+    coord.foreach( a => {
+      result = prime*result + a.hashCode
+    })
+    result
   }
 }

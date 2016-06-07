@@ -466,7 +466,6 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     }).reduceByKey(_ ++ _)
       .flatMap[((Point, T), (Point, W))](l => {
         l._2
-          .toList
           .sortWith((a,b) => {
             a._1 < b._1
           }).take(k).map(t => {
