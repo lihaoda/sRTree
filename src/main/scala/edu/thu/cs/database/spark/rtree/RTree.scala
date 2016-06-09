@@ -318,6 +318,50 @@ case class RTree(root: RTreeNode) extends Serializable {
     }
     ans.toArray
   }
+
+
+
+  def kNNInRange(query: Point, k: Int, dist:Double, keepSame: Boolean = false): Array[(Shape, Int)] = {
+    val ans = mutable.ArrayBuffer[(Shape, Int)]()
+    val pq = new mutable.PriorityQueue[(_, Double)]()(new NNOrdering())
+    var cnt = 0L
+    var kNN_dis = 0.0
+
+    val rootDist = query.minDist(root.m_mbr)
+    if(rootDist > dist) {
+      return Array[(Shape, Int)]()
+    }
+    pq.enqueue((root, rootDist))
+
+    val loop = new Breaks
+    import loop.{break, breakable}
+    breakable {
+      while (pq.nonEmpty) {
+        val now = pq.dequeue()
+        if (cnt >= k && (!keepSame || now._2 > kNN_dis))
+          break()
+
+        if(now._2 > dist)
+          break()
+
+        now._1 match {
+          case RTreeNode(_, m_child, isLeaf) =>
+            m_child.foreach {
+              case entry @ RTreeInternalEntry(mbr, node) =>
+                pq.enqueue((node, query.minDist(mbr)))
+              case entry @ RTreeLeafEntry(shape, m_data, size) =>
+                pq.enqueue((entry, query.minDist(shape)))
+            }
+          case RTreeLeafEntry(p, m_data, size) =>
+            cnt += size
+            kNN_dis = now._2
+            ans += ((p, m_data))
+        }
+      }
+    }
+
+    ans.toArray
+  }
 }
 
 object RTree {
