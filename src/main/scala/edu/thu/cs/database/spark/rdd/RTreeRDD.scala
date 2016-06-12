@@ -501,13 +501,13 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       lists
     })
     prev.zipPartitions(reparted)((aiter, biter) => {
-      val arrayBuffer = new ArrayBuffer[((Point, T), Array[(Point, W)])]()
+      val arrayBuffer = new ArrayBuffer[((Point, T), Int, Array[(Point, W)])]()
       aiter.foreach(t => {
         val aps = t._1.all
         val adatas = t._2
         aps.foreach(s => {
           biter.foreach(bt => {
-            arrayBuffer += Tuple2((s._1.asInstanceOf[Point], adatas(s._2)), bt._1.kNN(s._1.asInstanceOf[Point], k, false).map(bs => {
+            arrayBuffer += Tuple3((s._1.asInstanceOf[Point], adatas(s._2)), aps.length ,bt._1.kNN(s._1.asInstanceOf[Point], k, false).map(bs => {
               (bs._1.asInstanceOf[Point], bt._2(bs._2))
             }))
           })
