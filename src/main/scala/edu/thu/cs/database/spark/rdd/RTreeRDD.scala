@@ -479,7 +479,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       val center = centerPoint(a._1.asInstanceOf[MBR])
       val knnDis = rdd.takeKNN(center, k).last._1.minDist(center)
       val dis = getLooseDistByKNN(knnDis, a._1.asInstanceOf[MBR], center)
-      knnDisMap += Tuple2(a._2, (center, knnDis))
+      knnDisMap += Tuple2(a._2, (center, dis))
     })
 
     val reparted = prepartedWithCopied[W](rdd, partitions.length, (tree, datas) => {
