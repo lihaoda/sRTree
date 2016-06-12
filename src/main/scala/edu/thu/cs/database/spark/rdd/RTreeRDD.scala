@@ -8,7 +8,7 @@ import java.io._
 import edu.thu.cs.database.spark.RTreeInputFormat
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 
-import scala.collection.{TraversableOnce, mutable}
+import scala.collection.{GenTraversableOnce, TraversableOnce, mutable}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 //import com.github.davidmoten.rtree.geometry.{Geometry, Rectangle, Geometries}
@@ -37,6 +37,18 @@ class SearchedIterator[T: ClassTag](data:Array[T], rstIter: Iterator[(Shape, Int
   }
 }
 
+class SimpleIndexPartitioner(num:Int) extends Partitioner {
+  override def numPartitions: Int = num
+
+  override def getPartition(key: Any): Int = {
+    key match {
+      case i:Int =>
+        i
+      case s:_ =>
+        s.hashCode() % num
+    }
+  }
+}
 
 class PointDisOrdering[T: ClassTag](origin: Point) extends Ordering[(Point, T)] {
   def compare(a: (Point, T), b: (Point, T)) = {
@@ -276,6 +288,22 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
     this
   }
 
+  private def prepartedWithCopied[W: ClassTag](rdd:RTreeRDD[W],
+                                               partNum:Int,
+                                               func:(RTree, Array[W]) => GenTraversableOnce[(Int, Array[(Point, W)])])
+  :RDD[(RTree, Array[W])] = {
+    val rst = rdd.impl.mapPartitions[(Int, Array[(Point, W)])](iter => {
+      iter.flatMap[(Int, Array[(Point, W)])](t => {
+        func(t._1, t._2)
+      })
+    })
+    val shuffledRDD = new ShuffledRDD[Int, Array[(Point, W)], Array[(Point, W)]](rst, new SimpleIndexPartitioner(partNum))
+    shuffledRDD.map(t => {
+      val toIndexed = t._2.map(_._1).zipWithIndex
+      (RTree(toIndexed, RTree.default_max_entry_per_node), t._2.map(_._2))
+    })
+  }
+
   private def joinRDDWithPartition[W: ClassTag, U: ClassTag](rdd:RTreeRDD[W],
                                                 joinedParts:TraversableOnce[(Int, Int)],
                                                 func:((Int, Int), (Point, T), (RTree, Array[W])) => TraversableOnce[U])
@@ -444,8 +472,46 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       maxDist(center, mbr) * 2 + knnDist
     }
 
-    val joinParts = new mutable.ArrayBuffer[(Int, Int)]()
-    val knnDisMap = new mutable.HashMap[Int, Double]()
+    //val joinParts = new mutable.ArrayBuffer[(Int, Int)]()
+    val knnDisMap = new mutable.HashMap[Int, (Point, Double)]()
+
+    globalRTree.all.foreach(a => {
+      val center = centerPoint(a._1.asInstanceOf[MBR])
+      val knnDis = rdd.takeKNN(center, k).last._1.minDist(center)
+      val dis = getLooseDistByKNN(knnDis, a._1.asInstanceOf[MBR], center)
+      knnDisMap += Tuple2(a._2, (center, knnDis))
+    })
+
+    val reparted = prepartedWithCopied(rdd, partitions.length, (tree, datas) => {
+      val lists = new ListBuffer[(Int, Array[(Point, W)])]()
+      knnDisMap.foreach(t => {
+        val idx = t._1
+        val p = t._2._1
+        val r = t._2._2
+        val rst = tree.circleRange(p, r)
+        if(rst.nonEmpty) {
+          lists += Tuple2(idx, rst.map(t => (t._1.asInstanceOf[Point], datas(t._2))))
+        }
+      })
+      lists
+    })
+    prev.zipPartitions(reparted)((aiter, biter) => {
+      val arrayBuffer = new ArrayBuffer[((Point, T),(Point, W))]()
+      aiter.foreach(t => {
+        val aps = t._1.all
+        val adatas = t._2
+        aps.foreach(s => {
+          biter.foreach(bt => {
+            arrayBuffer ++= bt._1.kNN(s._1.asInstanceOf[Point], k, false).map(bs => {
+              ((s._1.asInstanceOf[Point], adatas(s._2)), (bs._1.asInstanceOf[Point], bt._2(bs._2)))
+            })
+          })
+        })
+      })
+      arrayBuffer.iterator
+    })
+
+    /*
     globalRTree.all.foreach(a => {
       val center = centerPoint(a._1.asInstanceOf[MBR])
       val knnDis = rdd.takeKNN(center, k).last._1.minDist(center)
@@ -455,7 +521,6 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
         joinParts += Tuple2(a._2, b._2)
       })
     })
-
     joinRDDWithPartition(rdd, joinParts, (parts:(Int, Int), a:(Point, T), b:(RTree, Array[W])) => {
       val point = a._1
       val adata = a._2
@@ -472,6 +537,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
           (l._1, t._2)
         })
       })
+      */
   }
 
   def takeKNN(p:Point, k:Int): Array[(Point, T)] = {
