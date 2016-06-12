@@ -44,8 +44,8 @@ class SimpleIndexPartitioner(num:Int) extends Partitioner {
     key match {
       case i:Int =>
         i
-      case s:_ =>
-        s.hashCode() % num
+      case _ =>
+        key.hashCode() % num
     }
   }
 }
