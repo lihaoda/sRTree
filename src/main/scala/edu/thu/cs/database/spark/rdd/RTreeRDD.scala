@@ -513,36 +513,9 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
           })
         })
       })
-      arrayBuffer.iterator
+      arrayBuffer.map(a => (a._1, a._2, arrayBuffer
+          .length, a._3)).iterator
     })
-
-    /*
-    globalRTree.all.foreach(a => {
-      val center = centerPoint(a._1.asInstanceOf[MBR])
-      val knnDis = rdd.takeKNN(center, k).last._1.minDist(center)
-      knnDisMap += Tuple2(a._2, knnDis)
-      val dis = getLooseDistByKNN(knnDis, a._1.asInstanceOf[MBR], center)
-      rdd.globalRTree.circleRange(center, dis).foreach(b => {
-        joinParts += Tuple2(a._2, b._2)
-      })
-    })
-    joinRDDWithPartition(rdd, joinParts, (parts:(Int, Int), a:(Point, T), b:(RTree, Array[W])) => {
-      val point = a._1
-      val adata = a._2
-      val tree = b._1
-      val bdatas = b._2
-      val dis = knnDisMap(parts._1) + point.minDist(centerPoint(tree.root.m_mbr))
-      tree.kNNInRange(point, k, dis).map(t => {
-        (point.minDist(t._1), (t._1.asInstanceOf[Point], bdatas(t._2)))
-      })
-    }).reduceByKey(_ ++ _)
-      .flatMap[((Point, T), (Point, W))](l => {
-      val list = l._2
-      list.sortWith((a,b) => a._1 < b._1).take(k).map(t => {
-          (l._1, t._2)
-        })
-      })
-      */
   }
 
   def knnJoin[W: ClassTag](rdd:RTreeRDD[W], k:Int):RDD[((Point, T),(Point, W))] = {
