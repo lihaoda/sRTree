@@ -482,7 +482,7 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       knnDisMap += Tuple2(a._2, (center, knnDis))
     })
 
-    val reparted = prepartedWithCopied(rdd, partitions.length, (tree, datas) => {
+    val reparted = prepartedWithCopied[W](rdd, partitions.length, (tree, datas) => {
       val lists = new ListBuffer[(Int, Array[(Point, W)])]()
       knnDisMap.foreach(t => {
         val idx = t._1
