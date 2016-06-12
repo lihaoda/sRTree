@@ -507,9 +507,9 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
         val adatas = t._2
         aps.foreach(s => {
           biter.foreach(bt => {
-            arrayBuffer += Tuple3((s._1.asInstanceOf[Point], adatas(s._2)), aps.length ,bt._1.kNN(s._1.asInstanceOf[Point], k, false).map(bs => {
+            arrayBuffer.append(Tuple3((s._1.asInstanceOf[Point], adatas(s._2)), aps.length ,bt._1.kNN(s._1.asInstanceOf[Point], k, false).map(bs => {
               (bs._1.asInstanceOf[Point], bt._2(bs._2))
-            }))
+            })))
           })
         })
       })
