@@ -549,8 +549,17 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
         val p = t._2._1
         val r = t._2._2
         val rst = tree.circleRange(p, r)
+
         if(rst.nonEmpty) {
-          lists += Tuple2(idx, rst.map(t => (t._1.asInstanceOf[Point], datas(t._2))))
+          val size = rst.length
+          val newList = new Array[(Point, W)](size)
+          var j = 0
+          while (j < size) {
+            newList(j) = (rst(j)._1.asInstanceOf[Point], datas(rst(j)._2))
+            j += 1
+          }
+
+          lists += Tuple2(idx, newList)
         }
       })
       lists
