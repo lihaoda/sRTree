@@ -298,9 +298,14 @@ private[spark] class RTreeRDD[T: ClassTag] (var prev: RDD[(RTree, Array[T])])
       })
     })
     val shuffledRDD = new ShuffledRDD[Int, Array[(Point, W)], Array[(Point, W)]](rst, new SimpleIndexPartitioner(partNum))
-    shuffledRDD.map(t => {
-      val toIndexed = t._2.map(_._1).zipWithIndex
-      (RTree(toIndexed, RTree.default_max_entry_per_node), t._2.map(_._2))
+    shuffledRDD.mapPartitions(iter => {
+      val arrayBuffer = new ArrayBuffer[(Point, W)]()
+      iter.foreach( t => {
+        arrayBuffer ++= t._2
+      })
+      val rst = arrayBuffer.toArray
+      val toIndexed = rst.map(_._1).zipWithIndex
+      Iterator(Tuple2(RTree(toIndexed, RTree.default_max_entry_per_node), rst.map(_._2)))
     })
   }
 
